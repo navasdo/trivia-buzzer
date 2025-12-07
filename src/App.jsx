@@ -12,7 +12,8 @@ import {
   setDoc,
   updateDoc,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  getDoc
 } from 'firebase/firestore';
 
 // --- 0. SETTINGS & BOONS ---
@@ -63,6 +64,8 @@ const BOONS = {
   }
 };
 
+const BOON_KEYS = Object.keys(BOONS).filter(k => k !== 'DOUBLE_JEOPARDY');
+
 // --- 1. CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyCDMkjW8F2TbzFJiSPStHaLk6TNkwzDNfg",
@@ -82,7 +85,6 @@ const getBuzzCollection = () => collection(db, 'buzzes');
 const getVoteCollection = () => collection(db, 'votes');
 const getGameDoc = () => doc(db, 'game', 'state');
 const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim());
-const getAllTeamsCollection = () => collection(db, 'teams');
 
 // --- ASSETS ---
 const SOUND_POINT = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/positive-point.mp3";
@@ -188,10 +190,10 @@ const Landing = ({ onChooseRole }) => {
 };
 
 // --- HOST VIEW ---
-const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy }) => {
+const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy }) => {
   const [timer, setTimer] = useState(60);
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
-  const [activeBoonDisplay, setActiveBoonDisplay] = useState(null); // For overlay
+  const [activeBoonDisplay, setActiveBoonDisplay] = useState(null); 
   
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
@@ -397,43 +399,9 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     const topThree = buzzes.slice(0, 3);
     const boonRound = gameState.boonRound;
 
-    // PHASE 1: BOON SELECTION
-    if (!boonRound || !boonRound.phase) {
-      return (
-        <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 relative">
-           <BoonOverlay />
-           <header className="w-full max-w-4xl flex justify-between items-center mb-6">
-              <button onClick={() => onSetMode('LOBBY')} className="text-gray-500 hover:text-white font-bold">← BACK</button>
-              <h2 className="text-3xl font-black text-white">SELECT PRIZE</h2>
-           </header>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl overflow-y-auto max-h-[80vh]">
-              {Object.values(BOONS).filter(b => b.id !== 'DOUBLE_JEOPARDY').map(boon => (
-                 <button key={boon.id} onClick={() => onSelectBoon(boon.id)} className={`bg-gray-800 hover:bg-gray-700 p-6 rounded-xl text-left border border-gray-600 group active:border-cyan-500 ${boonRound?.selectedBoonId === boon.id ? 'border-yellow-400 bg-gray-700' : ''}`}>
-                    <div className="text-4xl mb-2">{boon.icon}</div>
-                    <div className="text-xl font-bold text-white group-hover:text-yellow-400">{boon.name}</div>
-                    <div className="text-sm text-gray-400">{boon.desc}</div>
-                 </button>
-              ))}
-           </div>
-           {/* SPIN BUTTON */}
-           {boonRound?.selectedBoonId && (
-               <div className="fixed bottom-8 left-0 right-0 flex justify-center">
-                   <button onClick={onSpinBoon} className="bg-yellow-500 hover:bg-yellow-400 text-black font-black text-2xl py-4 px-12 rounded-full shadow-[0_0_30px_rgba(234,179,8,0.6)] animate-bounce">
-                       SPIN TO WIN! 🎰
-                   </button>
-               </div>
-           )}
-        </div>
-      );
-    }
-
-    // PHASE 2: SPINNING & REVEAL
-    if (boonRound.phase === 'SPINNING' || boonRound.phase === 'REVEAL') {
+    // PHASE 2: SPINNING & REVEAL (Auto triggered on entry)
+    if (boonRound?.phase === 'SPINNING' || boonRound?.phase === 'REVEAL') {
       const isSpinning = boonRound.phase === 'SPINNING';
-      const boon = isSpinning ? Object.values(BOONS)[Math.floor(Date.now() / 100) % 5] : BOONS[boonRound.boonId]; // Quick cycle effect logic simulated here for static render, real cycle handled in effect or player view better.
-      // Actually, for Host view static render is fine, Player view handles the animation loop usually.
-      // Let's rely on the final boon for Reveal.
-      
       return (
         <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center relative">
            <BoonOverlay />
@@ -441,8 +409,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
            
            {/* Spin/Reveal Box */}
            <div className={`bg-gray-800 p-12 rounded-2xl border-4 ${isSpinning ? 'border-gray-600' : 'border-yellow-500 shadow-[0_0_40px_rgba(234,179,8,0.2)]'} mb-12 duration-300`}>
-              {/* Note: React re-renders might not cycle fast enough for smooth 60fps spin on Host without local state interval, but standard prop updates will show changes. For visually engaging spin, we often use a local component that cycles arrays. */}
-              {/* I'll use a Spinner Component for visual flair */}
               <BoonSpinner active={isSpinning} targetBoon={BOONS[boonRound.boonId]} />
            </div>
            
@@ -459,7 +425,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
 
     // PHASE 3: BUZZING (Host sees list + Lock button)
-    if (boonRound.phase === 'BUZZING') {
+    if (boonRound?.phase === 'BUZZING') {
       return (
         <div className="min-h-screen bg-gray-900 text-white p-6 font-sans relative">
           <BoonOverlay />
@@ -498,7 +464,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
 
     // PHASE 4: GAUNTLET (Host controls strikes)
-    if (boonRound.phase === 'GAUNTLET') {
+    if (boonRound?.phase === 'GAUNTLET') {
        const step = boonRound.step || 1;
        const currentTeam = buzzes[step - 1];
        const boon = BOONS[boonRound.boonId];
@@ -528,6 +494,9 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
          </div>
        );
     }
+    
+    // Fallback if state is just 'LIGHTNING' but no boon round phase
+    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Initializing Lightning Round...</div>
   }
 
   // 3. Hint Clock (RESTORED VISUALS)
@@ -573,7 +542,8 @@ const BoonSpinner = ({ active, targetBoon }) => {
     const [displayBoon, setDisplayBoon] = useState(targetBoon || Object.values(BOONS)[0]);
     useEffect(() => {
         if (active) {
-            const boons = Object.values(BOONS).filter(b => b.id !== 'DOUBLE_JEOPARDY');
+            // Cycle through display only
+            const boons = BOON_KEYS.map(k => BOONS[k]);
             const int = setInterval(() => {
                 setDisplayBoon(boons[Math.floor(Math.random() * boons.length)]);
             }, 100);
@@ -602,7 +572,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
           const int = setInterval(() => {
               const left = Math.max(0, Math.ceil((gameState.djOffer.expiresAt - Date.now()) / 1000));
               setDjTimer(left);
-              if (left <= 0) clearInterval(int); // Backend handles actual timeout logic
+              if (left <= 0) clearInterval(int);
           }, 1000);
           return () => clearInterval(int);
       }
@@ -697,6 +667,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
      const boonRound = gameState.boonRound;
 
      // 2. BUZZING PHASE (Buzzer Active)
+     // Added fallback: if no boonRound, wait (shouldn't happen with new flow but safe to have)
      if (boonRound && boonRound.phase === 'BUZZING') {
         const myBuzzIndex = buzzes.findIndex(b => b.teamName.toLowerCase() === teamName.toLowerCase());
         const isBuzzed = myBuzzIndex !== -1;
@@ -838,11 +809,45 @@ export default function App() {
      const snap = await getDocs(getBuzzCollection());
      snap.docs.forEach(d => deleteDoc(d.ref));
   };
-  const handleSetMode = (mode) => {
+  
+  // Updated Set Mode Logic for Auto-Spin
+  const handleSetMode = async (mode) => {
      const data = { mode };
      if(mode==='HINT') data.hintRequest = null;
+     
+     if (mode === 'LIGHTNING') {
+         // Auto-calculate next boon
+         const currentState = gameState; // Local read safest for immediate action
+         const usedBoons = currentState.usedBoons || [];
+         let available = BOON_KEYS.filter(k => !usedBoons.includes(k));
+         let newUsed = usedBoons;
+         
+         if (available.length === 0) {
+             // Reset cycle
+             available = BOON_KEYS;
+             newUsed = [];
+         }
+         
+         // Pick random
+         const pickedId = available[Math.floor(Math.random() * available.length)];
+         newUsed = [...newUsed, pickedId];
+         
+         data.usedBoons = newUsed;
+         data.boonRound = {
+             boonId: pickedId,
+             phase: 'SPINNING',
+             timestamp: Date.now()
+         };
+         
+         // Auto-transition to Reveal after 4s
+         setTimeout(() => {
+             updateDoc(getGameDoc(), { 'boonRound.phase': 'REVEAL' });
+         }, 4000);
+     }
+     
      setDoc(getGameDoc(), data, { merge: true });
   }
+  
   const handleHintRequest = (team) => updateDoc(getGameDoc(), { hintRequest: { team, timestamp: Date.now() }});
   const handleVote = (team, vote) => addDoc(getVoteCollection(), { teamName: team, vote, userId: user.uid });
   const handleClearVotes = async () => {
@@ -851,7 +856,7 @@ export default function App() {
      updateDoc(getGameDoc(), { hintRequest: null });
   };
 
-  // NEW LIGHTNING FLOW ACTIONS
+  // Not used in new auto-flow, but kept for safety
   const handleSelectBoon = (boonId) => {
      updateDoc(getGameDoc(), { 
         boonRound: { selectedBoonId: boonId, phase: null } 
