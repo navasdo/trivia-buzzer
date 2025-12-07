@@ -44,7 +44,7 @@ const SOUND_HINT_ALERT = "https://raw.githubusercontent.com/navasdo/navacite/ref
 const SOUND_FAIL = "https://www.myinstants.com/media/sounds/wrong-answer-sound-effect.mp3"; 
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
-const ICON_2ND = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
+const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
 const ICON_3RD = "https://img.icons8.com/?size=400&id=HXPvlWjuDyzs&format=png&color=000000";
 const ICON_SLOW = "https://img.icons8.com/?size=400&id=48261&format=png&color=000000";
 const ICON_HINT = "https://img.icons8.com/?size=400&id=44818&format=png&color=000000";
@@ -114,8 +114,8 @@ const Landing = ({ onChooseRole }) => {
         TRIVIA <span className="text-cyan-400" style={{ textShadow: '0 0 10px #22d3ee' }}>BUZZER</span>
       </h1>
 <p className="text-gray-300 mb-12 text-lg">
-  “Learn a bit. Gloat a lot.”
-  <span className="block italic">— Daniel ‘Brown Bear’ Navas</span>
+  “Knowledge is power. Petty is fun.”
+  <span className="block italic">— Daniel Navas</span>
 </p>
 
       <div className="space-y-6 w-full max-w-md">
@@ -141,7 +141,10 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   const [timer, setTimer] = useState(60);
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const prevBuzzCount = useRef(0);
+  
+  // Refs for audio control
   const hintProcessed = useRef(false);
+  const hintAudioRef = useRef(null);
 
   // Sound Effect: Buzzer
   useEffect(() => {
@@ -155,7 +158,11 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   useEffect(() => {
     if (gameState?.hintRequest && !hintProcessed.current) {
       hintProcessed.current = true;
-      new Audio(SOUND_HINT_ALERT).play().catch(e => console.log("Audio blocked", e));
+      
+      // Start Hint Audio
+      const audio = new Audio(SOUND_HINT_ALERT);
+      audio.play().catch(e => console.log("Audio blocked", e));
+      hintAudioRef.current = audio;
       
       let startTime = Date.now();
       const duration = 10000; 
@@ -165,16 +172,34 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         const pct = Math.max(0, 100 - (elapsed / duration) * 100);
         setVotingTimeLeft(pct);
 
+        // FADE OUT LOGIC:
+        // If we are in the last 20% (last 2 seconds), fade volume from 1.0 to 0.0
+        if (hintAudioRef.current && pct <= 20) {
+            const volume = pct / 20; // 20% -> 1.0, 10% -> 0.5, 0% -> 0.0
+            hintAudioRef.current.volume = Math.max(0, volume);
+        }
+
         if (elapsed >= duration) {
           clearInterval(interval);
         }
       }, 100);
       
-      return () => clearInterval(interval);
+      return () => {
+          clearInterval(interval);
+          if (hintAudioRef.current) {
+              hintAudioRef.current.pause();
+              hintAudioRef.current = null;
+          }
+      };
     }
     if (!gameState?.hintRequest) {
       hintProcessed.current = false;
       setVotingTimeLeft(100);
+      // Ensure audio stops if manually cleared
+      if (hintAudioRef.current) {
+          hintAudioRef.current.pause();
+          hintAudioRef.current = null;
+      }
     }
   }, [gameState?.hintRequest]);
 
@@ -195,8 +220,16 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   // Play result sound once when voting ends
   const resultSoundPlayed = useRef(false);
   useEffect(() => {
+    // Only trigger when time is UP and we have a request
     if (votingTimeLeft === 0 && !resultSoundPlayed.current && gameState?.hintRequest) {
       resultSoundPlayed.current = true;
+      
+      // Double check hint audio is paused/stopped to prevent overlap
+      if (hintAudioRef.current) {
+          hintAudioRef.current.pause();
+          hintAudioRef.current = null;
+      }
+
       if (acceptCount > rejectCount) {
         new Audio(SOUND_POINT).play();
       } else {
