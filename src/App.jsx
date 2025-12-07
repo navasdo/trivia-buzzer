@@ -189,11 +189,29 @@ const Landing = ({ onChooseRole }) => {
   );
 };
 
+// --- VISUAL COMPONENTS ---
+const NotificationOverlay = ({ data }) => {
+    if (!data) return null;
+    const isGood = data.type === 'GOOD';
+    return (
+      <div className={`fixed top-4 right-4 z-[100] bg-gray-900 border-2 ${isGood ? 'border-green-400' : 'border-red-500'} p-4 rounded-xl shadow-2xl animate-in slide-in-from-right fade-in duration-300 max-w-sm`}>
+          <div className="flex items-center gap-4">
+              <div className="text-4xl">{data.icon}</div>
+              <div>
+                  <div className={`${isGood ? 'text-green-400' : 'text-red-500'} font-bold text-xs uppercase tracking-widest`}>{data.title}</div>
+                  <div className="text-white font-black text-lg leading-tight">{data.message}</div>
+                  {data.sub && <div className="text-gray-400 text-sm">{data.sub}</div>}
+              </div>
+          </div>
+      </div>
+    );
+};
+
 // --- HOST VIEW ---
-const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy }) => {
+const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy }) => {
   const [timer, setTimer] = useState(60);
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
-  const [activeBoonDisplay, setActiveBoonDisplay] = useState(null); 
+  const [notification, setNotification] = useState(null); 
   
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
@@ -230,34 +248,42 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         return () => { clearInterval(fadeInt); if(spinAudioRef.current) spinAudioRef.current.pause(); }
     }
     if (gameState?.boonRound?.phase === 'REVEAL') {
-        // Stop spinner just in case
         if(spinAudioRef.current) spinAudioRef.current.pause();
         new Audio(SOUND_BOON_SELECTED).play().catch(e => console.log(e));
     }
   }, [gameState?.boonRound?.phase]);
 
-  // Sound: Boon Used Alert
+  // Sound & Notify: Boon Used
   useEffect(() => {
       if (gameState?.activeBoonUsage) {
           const { boonId, teamName, timestamp } = gameState.activeBoonUsage;
-          // Only show/play if recent (within 5s)
           if (Date.now() - timestamp < 5000) {
-              setActiveBoonDisplay({ boon: BOONS[boonId], teamName });
+              const boon = BOONS[boonId];
+              setNotification({ type: 'GOOD', icon: boon.icon, title: 'BOON ACTIVATED', message: boon.name, sub: `By ${teamName}` });
               new Audio(SOUND_BOON_USED).play().catch(e => console.log(e));
-              const t = setTimeout(() => setActiveBoonDisplay(null), 4000);
+              const t = setTimeout(() => setNotification(null), 4000);
               return () => clearTimeout(t);
           }
       }
   }, [gameState?.activeBoonUsage]);
 
-  // Sound: Double Jeopardy Acceptance
+  // Sound & Notify: Double Jeopardy Decision
   useEffect(() => {
-      if (gameState?.lastBoonSpent && Date.now() - gameState.lastBoonSpent.timestamp < 2000) {
-          if (gameState.lastBoonSpent.boonId === 'DOUBLE_JEOPARDY') {
-             new Audio(SOUND_BOON_SPENT).play().catch(e => console.log(e));
+      if (gameState?.djResult) {
+          const { outcome, team, timestamp } = gameState.djResult;
+          if (Date.now() - timestamp < 5000) {
+              if (outcome === 'ACCEPTED') {
+                  setNotification({ type: 'GOOD', icon: '🎲', title: 'DOUBLE JEOPARDY', message: 'ACCEPTED!', sub: `${team} is going for it!` });
+                  new Audio(SOUND_BOON_SPENT).play().catch(e => console.log(e));
+              } else {
+                  setNotification({ type: 'BAD', icon: '🛑', title: 'DOUBLE JEOPARDY', message: 'REJECTED', sub: `${team} played it safe.` });
+                  new Audio(SOUND_FAIL).play().catch(e => console.log(e));
+              }
+              const t = setTimeout(() => setNotification(null), 4000);
+              return () => clearTimeout(t);
           }
       }
-  }, [gameState?.lastBoonSpent]);
+  }, [gameState?.djResult]);
 
 
   // Hint Logic (Same as before)
@@ -314,20 +340,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   // --- HOST RENDER ---
   
-  // Boon Usage Overlay (Persistent across modes)
-  const BoonOverlay = () => activeBoonDisplay ? (
-      <div className="fixed top-4 right-4 z-[100] bg-gray-900 border-2 border-yellow-400 p-4 rounded-xl shadow-[0_0_30px_rgba(250,204,21,0.5)] animate-in slide-in-from-right fade-in duration-300 max-w-sm">
-          <div className="flex items-center gap-4">
-              <div className="text-5xl">{activeBoonDisplay.boon.icon}</div>
-              <div>
-                  <div className="text-yellow-400 font-bold text-xs uppercase tracking-widest">BOON ACTIVATED</div>
-                  <div className="text-white font-black text-xl">{activeBoonDisplay.boon.name}</div>
-                  <div className="text-gray-400 text-sm">By {activeBoonDisplay.teamName}</div>
-              </div>
-          </div>
-      </div>
-  ) : null;
-
   // Double Jeopardy Overlay (Host View)
   const DJOverlay = () => gameState?.djOffer ? (
       <div className="fixed bottom-4 left-4 right-4 z-[90] bg-purple-900/90 border-t-4 border-purple-500 p-6 backdrop-blur-md animate-in slide-in-from-bottom">
@@ -345,7 +357,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   if (!gameState?.mode || gameState.mode === 'LOBBY') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 space-y-8 relative">
-        <BoonOverlay />
+        <NotificationOverlay data={notification} />
         <DJOverlay />
         <h2 className="text-4xl font-black italic mb-8">SELECT MODE</h2>
         <button onClick={() => onSetMode('LIGHTNING')} className="w-full max-w-md bg-cyan-600 hover:bg-cyan-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-cyan-800 active:border-b-0 active:translate-y-2">⚡ LIGHTNING ROUND</button>
@@ -404,7 +416,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       const isSpinning = boonRound.phase === 'SPINNING';
       return (
         <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center relative">
-           <BoonOverlay />
+           <NotificationOverlay data={notification} />
            <h1 className="text-gray-400 font-bold uppercase tracking-widest mb-4">{isSpinning ? 'SELECTING PRIZE...' : 'PRIZE LOCKED:'}</h1>
            
            {/* Spin/Reveal Box */}
@@ -428,7 +440,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     if (boonRound?.phase === 'BUZZING') {
       return (
         <div className="min-h-screen bg-gray-900 text-white p-6 font-sans relative">
-          <BoonOverlay />
+          <NotificationOverlay data={notification} />
           <div className="max-w-3xl mx-auto">
             <header className="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
               <div className="text-yellow-400 font-bold">PRIZE: {BOONS[boonRound.boonId].name}</div>
@@ -471,7 +483,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
        return (
          <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center relative">
-            <BoonOverlay />
+            <NotificationOverlay data={notification} />
             <h1 className="text-4xl text-yellow-400 font-black mb-2 animate-pulse">FOR THE BOON:</h1>
             <div className="text-6xl mb-8">{boon.icon} {boon.name}</div>
             
@@ -508,7 +520,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   if (gameState.mode === 'HINT') {
      return (
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
-           <BoonOverlay />
+           <NotificationOverlay data={notification} />
            <header className="w-full max-w-4xl flex justify-between mb-8 pb-4 border-b border-gray-700"><button onClick={() => {onSetMode('LOBBY'); onClearVotes();}} className="text-gray-500 font-bold hover:text-white">← EXIT</button><h2 className="text-2xl font-bold text-pink-500 uppercase tracking-widest">HINT CLOCK</h2></header>
            <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{timer}</div>
            {!gameState.hintRequest && <div className="text-gray-500 text-xl font-bold uppercase tracking-widest">Waiting for requests...</div>}
@@ -577,11 +589,14 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
           const int = setInterval(() => {
               const left = Math.max(0, Math.ceil((gameState.djOffer.expiresAt - Date.now()) / 1000));
               setDjTimer(left);
-              if (left <= 0) clearInterval(int);
+              if (left <= 0) {
+                  clearInterval(int);
+                  onDjDecision(false); // AUTO REJECT ON TIMEOUT
+              }
           }, 1000);
           return () => clearInterval(int);
       }
-  }, [gameState?.djOffer, teamName]);
+  }, [gameState?.djOffer, teamName, onDjDecision]);
 
   // --- INVENTORY DRAWER ---
   const InventoryDrawer = () => (
@@ -667,13 +682,13 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
      )
   }
 
-  // --- LIGHTNING ROUND ---
+  // --- LIGHTNING ROUND (REFACTORED for Safety) ---
   if (gameState?.mode === 'LIGHTNING') {
      const boonRound = gameState.boonRound;
+     const phase = boonRound?.phase;
 
-     // 2. BUZZING PHASE (Buzzer Active)
-     // Added fallback: if no boonRound, wait (shouldn't happen with new flow but safe to have)
-     if (boonRound && boonRound.phase === 'BUZZING') {
+     // BUZZING PHASE
+     if (phase === 'BUZZING') {
         const myBuzzIndex = buzzes.findIndex(b => b.teamName.toLowerCase() === teamName.toLowerCase());
         const isBuzzed = myBuzzIndex !== -1;
         const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
@@ -713,8 +728,8 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
         );
      }
 
-     // 3. GAUNTLET PHASE (Watching results)
-     if (boonRound && boonRound.phase === 'GAUNTLET') {
+     // GAUNTLET PHASE
+     if (phase === 'GAUNTLET') {
         const step = boonRound.step || 1;
         const currentTeam = buzzes[step-1]?.teamName || "Nobody";
         const boon = BOONS[boonRound.boonId];
@@ -730,6 +745,13 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
            </div>
         );
      }
+     
+     // Fallback for safety inside Lightning mode (Prevents Blank Screen)
+     return (
+        <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
+           <div className="animate-pulse text-xl text-cyan-400 font-bold">Get Ready...</div>
+        </div>
+     );
   }
 
   // --- LOBBY/HINT DEFAULT ---
@@ -943,10 +965,17 @@ export default function App() {
           // Accepted
           const teamRef = getTeamDoc(team);
           updateDoc(teamRef, { inventory: arrayRemove('DOUBLE_JEOPARDY') });
-          updateDoc(getGameDoc(), { djOffer: null, lastBoonSpent: { boonId: 'DOUBLE_JEOPARDY', timestamp: Date.now() } });
+          updateDoc(getGameDoc(), { 
+              djOffer: null, 
+              djResult: { outcome: 'ACCEPTED', team, timestamp: Date.now() },
+              lastBoonSpent: { boonId: 'DOUBLE_JEOPARDY', timestamp: Date.now() } 
+          });
       } else {
           // Rejected
-          updateDoc(getGameDoc(), { djOffer: null });
+          updateDoc(getGameDoc(), { 
+              djOffer: null,
+              djResult: { outcome: 'REJECTED', team, timestamp: Date.now() }
+          });
       }
   };
 
