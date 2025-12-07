@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 
 // --- 0. SETTINGS & BOONS ---
-const HOST_PASSWORD = "admin"; // Change this!
+const HOST_PASSWORD = "20170621"; // Change this!
 
 const BOONS = {
   EXEC_ORDER: { 
@@ -68,7 +68,7 @@ const db = getFirestore(app);
 const getBuzzCollection = () => collection(db, 'buzzes');
 const getVoteCollection = () => collection(db, 'votes');
 const getGameDoc = () => doc(db, 'game', 'state');
-const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim()); // Normalize IDs
+const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim());
 
 // --- ASSETS ---
 const SOUND_POINT = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/positive-point.mp3";
@@ -225,13 +225,10 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     // Only trigger when time is UP and we have a request
     if (votingTimeLeft === 0 && !resultSoundPlayed.current && gameState?.hintRequest) {
       resultSoundPlayed.current = true;
-      
-      // Double check hint audio is paused/stopped to prevent overlap
       if (hintAudioRef.current) {
           hintAudioRef.current.pause();
           hintAudioRef.current = null;
       }
-
       if (acceptCount > rejectCount) {
         new Audio(SOUND_POINT).play();
       } else {
@@ -244,7 +241,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   // --- GAUNTLET LOGIC ---
   const handleStartGauntlet = (boonId) => {
     setSelectedBoon(boonId);
-    setGauntletStep(1); // Start with Team 1
+    setGauntletStep(1); 
     onStartGauntlet(boonId); 
     new Audio(SOUND_TADA).play();
   };
@@ -324,14 +321,14 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
           </header>
 
           <div className="grid grid-cols-2 gap-4 mb-8">
-             <button onClick={onResetBuzzers} className="bg-red-600 hover:bg-red-500 text-white font-bold text-xl py-4 rounded-lg shadow-lg uppercase tracking-widest border-b-4 border-red-800 active:border-b-0 active:translate-y-1">RESET</button>
-             {/* PRIZE BUTTON - Only active if we have buzzes */}
+             <button onClick={onResetBuzzers} className="bg-red-600 hover:bg-red-500 text-white font-black text-2xl py-6 rounded-lg shadow-lg uppercase tracking-widest border-b-4 border-red-800 active:border-b-0 active:translate-y-1">RESET</button>
+             {/* PRIZE BUTTON */}
              <button 
                 disabled={buzzes.length === 0}
                 onClick={() => setGauntletStep(-1)} 
-                className={`text-white font-bold text-xl py-4 rounded-lg shadow-lg uppercase tracking-widest border-b-4 active:border-b-0 active:translate-y-1 ${buzzes.length > 0 ? 'bg-yellow-500 hover:bg-yellow-400 border-yellow-700' : 'bg-gray-700 border-gray-800 opacity-50 cursor-not-allowed'}`}
+                className={`text-white font-black text-2xl py-6 rounded-lg shadow-lg uppercase tracking-widest border-b-4 active:border-b-0 active:translate-y-1 ${buzzes.length > 0 ? 'bg-yellow-500 hover:bg-yellow-400 border-yellow-700' : 'bg-gray-700 border-gray-800 opacity-50 cursor-not-allowed'}`}
              >
-                LOCK & AWARD PRIZE
+                LOCK & PRIZE
              </button>
           </div>
 
@@ -354,7 +351,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
           <div className="space-y-6">
             {topThree.map((buzz, index) => (
-               <div key={buzz.id} className={`relative p-4 rounded-xl border flex items-center justify-between ${index === 0 ? 'bg-cyan-900/40 border-cyan-400 scale-105' : 'bg-gray-800 border-gray-700'}`}>
+               <div key={buzz.id} className={`relative p-4 rounded-xl border flex items-center justify-between transition-all duration-500 ${index === 0 ? 'bg-cyan-900/40 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)] scale-105 my-6' : 'bg-gray-800 border-gray-700'}`}>
                   <div className="flex items-center gap-6">
                     <img src={index === 0 ? ICON_1ST : index === 1 ? ICON_2ND : ICON_3RD} className="w-16 h-16 object-contain filter invert" />
                     <span className={`font-bold text-3xl ${index === 0 ? 'text-white' : 'text-gray-300'}`}>{buzz.teamName}</span>
@@ -386,36 +383,61 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     );
   }
 
-  // Hint Clock
+  // Hint Clock (RESTORED VISUALS)
   if (gameState.mode === 'HINT') {
      return (
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center">
-           <header className="w-full max-w-4xl flex justify-between mb-8 pb-4 border-b border-gray-700"><button onClick={() => {onSetMode('LOBBY'); onClearVotes();}} className="text-gray-500 font-bold">EXIT</button><h2 className="text-2xl font-bold text-pink-500">HINT CLOCK</h2></header>
+           <header className="w-full max-w-4xl flex justify-between mb-8 pb-4 border-b border-gray-700"><button onClick={() => {onSetMode('LOBBY'); onClearVotes();}} className="text-gray-500 font-bold hover:text-white">← EXIT</button><h2 className="text-2xl font-bold text-pink-500 uppercase tracking-widest">HINT CLOCK</h2></header>
            
-           {!gameState.hintRequest && (
-              <>
-                 <div className="text-[12rem] font-black leading-none mb-8">{timer}</div>
-                 <div className="text-gray-500">Waiting for requests...</div>
-              </>
-           )}
+           {/* The Timer (RESTORED STYLING) */}
+           <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">
+              {timer}
+           </div>
+
+           {!gameState.hintRequest && <div className="text-gray-500 text-xl font-bold uppercase tracking-widest">Waiting for requests...</div>}
 
            {gameState.hintRequest && (
-              <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
-                 <h1 className="text-4xl text-yellow-400 font-black mb-4 animate-pulse">HINT REQUESTED!</h1>
-                 <h2 className="text-2xl text-white mb-8">{gameState.hintRequest.team}</h2>
+              <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+                 <h1 className="text-4xl md:text-6xl font-black text-yellow-400 mb-6 text-center animate-pulse">HINT REQUESTED!</h1>
+                 <h2 className="text-2xl text-gray-300 mb-8 uppercase tracking-widest">By Team: <span className="text-white font-bold">{gameState.hintRequest.team}</span></h2>
                  
-                 <div className="w-full max-w-2xl bg-gray-800 rounded-xl p-8 border-2 border-gray-600">
-                    <div className="flex justify-between mb-8">
-                       <div className="text-green-400 font-bold">Accepted: {acceptCount}</div>
-                       <div className="text-red-400 font-bold">Rejected: {rejectCount}</div>
+                 {/* RESTORED: RICH VOTING DASHBOARD */}
+                 <div className="w-full max-w-2xl bg-gray-800 rounded-xl p-8 border-2 border-gray-600 relative overflow-hidden">
+                    <div className="flex justify-between items-start mb-8">
+                       {/* Accepted Column */}
+                       <div className="w-1/3">
+                          <h3 className="text-green-400 font-bold uppercase mb-4 border-b border-green-400/30 pb-2">Accepted ({acceptCount})</h3>
+                          <div className="space-y-2">
+                             {votes.filter(v => v.vote === 'accept').map(v => (
+                                <div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>
+                             ))}
+                          </div>
+                       </div>
+
+                       {/* Icon */}
+                       <div className="w-1/3 flex justify-center">
+                          <img src={ICON_HINT} className="w-24 h-24 object-contain filter invert" />
+                       </div>
+
+                       {/* Rejected Column */}
+                       <div className="w-1/3 text-right">
+                          <h3 className="text-red-400 font-bold uppercase mb-4 border-b border-red-400/30 pb-2">Rejected ({rejectCount})</h3>
+                          <div className="space-y-2">
+                             {votes.filter(v => v.vote === 'reject').map(v => (
+                                <div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>
+                             ))}
+                          </div>
+                       </div>
                     </div>
+
+                    {/* Progress Bar */}
                     {votingTimeLeft > 0 ? (
-                       <div className="w-full h-4 bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-400" style={{width: `${votingTimeLeft}%`}}></div></div>
+                       <div className="w-full h-4 bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-400 transition-all duration-100 ease-linear" style={{width: `${votingTimeLeft}%`}}></div></div>
                     ) : (
-                       <div className={`text-center text-4xl font-black ${voteResult === 'PASSED' ? 'text-green-400':'text-red-500'}`}>VOTE {voteResult}</div>
+                       <div className={`text-center text-4xl font-black uppercase py-4 ${voteResult === 'PASSED' ? 'text-green-400':'text-red-500'}`}>VOTE {voteResult}!</div>
                     )}
                  </div>
-                 <button onClick={onClearVotes} className="mt-12 px-8 py-3 bg-gray-800 text-gray-400 font-bold rounded border border-gray-600">Clear & Resume</button>
+                 <button onClick={onClearVotes} className="mt-12 px-8 py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-bold rounded-lg border border-gray-600 uppercase tracking-widest">Clear & Resume</button>
               </div>
            )}
         </div>
