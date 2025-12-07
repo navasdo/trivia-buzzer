@@ -14,6 +14,10 @@ import {
   updateDoc
 } from 'firebase/firestore';
 
+// --- 0. SETTINGS ---
+// CHANGE THIS PASSWORD!
+const HOST_PASSWORD = "20170621"; 
+
 // --- 1. CONFIGURATION & SETUP ---
 // We are now using YOUR specific project configuration.
 const firebaseConfig = {
@@ -30,8 +34,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Helpers
-// Now that we are using YOUR database, we can use simple root-level collections.
-// This makes it much easier to see the data in your Firebase Console.
 const getBuzzCollection = () => collection(db, 'buzzes');
 const getVoteCollection = () => collection(db, 'votes');
 const getGameDoc = () => doc(db, 'game', 'state');
@@ -55,34 +57,86 @@ const Loading = () => (
   </div>
 );
 
-const Landing = ({ onChooseRole }) => (
-  <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-indigo-950 flex flex-col items-center justify-center p-6 text-center font-sans">
-    <h1 className="text-5xl font-black text-white italic mb-2 tracking-tighter" style={{ textShadow: '0 0 10px #ec4899' }}>
-      TRIVIA <span className="text-cyan-400" style={{ textShadow: '0 0 10px #22d3ee' }}>BUZZER</span>
-    </h1>
-    <p className="text-gray-300 mb-12 text-lg">The Thirty-Great Showdown</p>
+const Landing = ({ onChooseRole }) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [error, setError] = useState("");
 
-    <div className="space-y-6 w-full max-w-md">
-      <button 
-        onClick={() => onChooseRole('player')}
-        className="w-full bg-gray-800 border-2 border-cyan-400 hover:bg-cyan-900/30 text-cyan-300 font-bold text-2xl py-6 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)]"
-      >
-        I AM A PLAYER
-      </button>
-      <button 
-        onClick={() => onChooseRole('host')}
-        className="w-full bg-gray-800 border-2 border-pink-500 hover:bg-pink-900/30 text-pink-400 font-bold text-xl py-4 rounded-xl transition-all"
-      >
-        I AM THE HOST
-      </button>
+  const handleHostLogin = (e) => {
+    e.preventDefault();
+    if (passwordInput === HOST_PASSWORD) {
+      onChooseRole('host');
+    } else {
+      setError("Incorrect Password");
+      setPasswordInput("");
+    }
+  };
+
+  if (showPassword) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl border border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.3)]">
+          <h2 className="text-2xl font-black text-white mb-6 uppercase tracking-widest">Host Access</h2>
+          <form onSubmit={handleHostLogin} className="space-y-4">
+            <input 
+              type="password" 
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="Enter Password"
+              className="w-full bg-gray-900 border-2 border-gray-700 rounded-lg p-4 text-white text-xl focus:border-pink-500 focus:outline-none text-center"
+              autoFocus
+            />
+            {error && <p className="text-red-500 font-bold animate-pulse">{error}</p>}
+            <div className="flex gap-4">
+              <button 
+                type="button"
+                onClick={() => setShowPassword(false)}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-lg"
+              >
+                BACK
+              </button>
+              <button 
+                type="submit"
+                className="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-black py-4 rounded-lg uppercase tracking-wider"
+              >
+                LOGIN
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-indigo-950 flex flex-col items-center justify-center p-6 text-center font-sans">
+      <h1 className="text-5xl font-black text-white italic mb-2 tracking-tighter" style={{ textShadow: '0 0 10px #ec4899' }}>
+        TRIVIA <span className="text-cyan-400" style={{ textShadow: '0 0 10px #22d3ee' }}>BUZZER</span>
+      </h1>
+      <p className="text-gray-300 mb-12 text-lg">The Thirty-Great Showdown</p>
+
+      <div className="space-y-6 w-full max-w-md">
+        <button 
+          onClick={() => onChooseRole('player')}
+          className="w-full bg-gray-800 border-2 border-cyan-400 hover:bg-cyan-900/30 text-cyan-300 font-bold text-2xl py-6 rounded-xl transition-all shadow-[0_0_15px_rgba(34,211,238,0.3)]"
+        >
+          I AM A PLAYER
+        </button>
+        <button 
+          onClick={() => setShowPassword(true)}
+          className="w-full bg-gray-800 border-2 border-pink-500 hover:bg-pink-900/30 text-pink-400 font-bold text-xl py-4 rounded-xl transition-all"
+        >
+          I AM THE HOST
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // --- HOST VIEW ---
 const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes }) => {
   const [timer, setTimer] = useState(60);
-  const [votingTimeLeft, setVotingTimeLeft] = useState(100); // Percentage for bar
+  const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
 
@@ -100,7 +154,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       hintProcessed.current = true;
       new Audio(SOUND_HINT_ALERT).play().catch(e => console.log("Audio blocked", e));
       
-      // Start Voting Timer Animation (10 seconds duration)
       let startTime = Date.now();
       const duration = 10000; 
       
@@ -114,7 +167,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         }
       }, 100);
       
-      // Cleanup
       return () => clearInterval(interval);
     }
     if (!gameState?.hintRequest) {
@@ -154,7 +206,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   // --- RENDER HOST ---
   
-  // 1. Dashboard (No Mode)
   if (!gameState?.mode || gameState.mode === 'LOBBY') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 space-y-8">
@@ -347,7 +398,37 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, t
   if (gameState.mode === 'LIGHTNING') {
     const myBuzzIndex = buzzes.findIndex(b => b.teamName.toLowerCase() === teamName.toLowerCase());
     const isBuzzed = myBuzzIndex !== -1;
-    const isLocked = buzzes.length > 0 && !isBuzzed;
+    
+    // Logic for 5s Window
+    const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    // Update countdown timer every 50ms
+    useEffect(() => {
+      if (firstBuzzTime && !isBuzzed) {
+        const interval = setInterval(() => {
+            const now = Date.now();
+            const diff = 5000 - (now - firstBuzzTime);
+            if (diff <= 0) {
+                setTimeLeft(0);
+                clearInterval(interval);
+            } else {
+                setTimeLeft(diff);
+            }
+        }, 30); // Fast update
+        return () => clearInterval(interval);
+      } else {
+          // Reset if no buzzes
+          if (!firstBuzzTime) setTimeLeft(5000);
+      }
+    }, [firstBuzzTime, isBuzzed]);
+
+    // Locked if: Someone buzzed AND (I haven't buzzed) AND (Timer is effectively 0)
+    // Note: We use a small buffer (e.g., 5000) for calculation logic, but relying on Date.now()
+    const now = Date.now();
+    const isWindowClosed = firstBuzzTime && (now - firstBuzzTime > 5000);
+    const isLocked = !isBuzzed && isWindowClosed;
+    const showCountdown = !isBuzzed && firstBuzzTime && !isWindowClosed;
 
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center p-6 transition-colors duration-500 ${isBuzzed ? 'bg-green-900' : isLocked ? 'bg-gray-900' : 'bg-gray-900'}`}>
@@ -358,6 +439,13 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, t
             <div className="animate-bounce"><h1 className="text-6xl font-black text-white drop-shadow-lg">BUZZED!</h1><p className="text-xl text-green-300 font-bold mt-2">Rank: #{myBuzzIndex + 1}</p></div>
           ) : isLocked ? (
             <div><h1 className="text-4xl font-black text-gray-500">LOCKED OUT</h1><p className="text-gray-400 mt-2">Someone else was faster...</p></div>
+          ) : showCountdown ? (
+            <div>
+                 <h1 className="text-6xl font-black text-red-500 animate-pulse tracking-tighter">
+                   {(timeLeft / 1000).toFixed(2)}s
+                 </h1>
+                 <p className="text-red-300 font-bold mt-2 uppercase">Hurry!</p>
+            </div>
           ) : (
             <h1 className="text-4xl font-black text-cyan-400 animate-pulse">READY!</h1>
           )}
@@ -441,9 +529,6 @@ export default function App() {
   const [gameState, setGameState] = useState({ mode: 'LOBBY' });
 
   // A. Auth
-  // Replaced "signInWithCustomToken" with "signInAnonymously" logic only,
-  // because we are now using the User's personal Firebase config.
-  // The custom token was only needed for the previous preview environment.
   useEffect(() => {
     const initAuth = async () => {
       await signInAnonymously(auth);
@@ -523,6 +608,8 @@ export default function App() {
 
   // --- RENDER ---
   if (!user) return <Loading />;
+  
+  // NOTE: Pass the role setter to Landing
   if (!role) return <Landing onChooseRole={setRole} />;
 
   if (role === 'host') {
