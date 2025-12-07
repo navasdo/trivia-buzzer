@@ -496,7 +496,12 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
     
     // Fallback if state is just 'LIGHTNING' but no boon round phase
-    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Initializing Lightning Round...</div>
+    return (
+        <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 text-center">
+            <div className="text-2xl font-bold mb-4">Resuming Lightning Round...</div>
+            <button onClick={() => onSetMode('LOBBY')} className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg">CANCEL & GO TO LOBBY</button>
+        </div>
+    );
   }
 
   // 3. Hint Clock (RESTORED VISUALS)
