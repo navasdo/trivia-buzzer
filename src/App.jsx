@@ -113,7 +113,10 @@ const Landing = ({ onChooseRole }) => {
       <h1 className="text-5xl font-black text-white italic mb-2 tracking-tighter" style={{ textShadow: '0 0 10px #ec4899' }}>
         TRIVIA <span className="text-cyan-400" style={{ textShadow: '0 0 10px #22d3ee' }}>BUZZER</span>
       </h1>
-      <p className="text-gray-300 mb-12 text-lg">"Every quiz is a chance to learn, but more so, a chance to show your friends you're smarter than them." - Daniel 'Brown Bear' Navas</p>
+<p className="text-gray-300 mb-12 text-lg">
+  “Learn a bit. Gloat a lot.”
+  <span className="block italic">— Daniel ‘Brown Bear’ Navas</span>
+</p>
 
       <div className="space-y-6 w-full max-w-md">
         <button 
