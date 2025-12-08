@@ -89,6 +89,7 @@ const getBuzzCollection = () => collection(db, 'buzzes');
 const getVoteCollection = () => collection(db, 'votes');
 const getGameDoc = () => doc(db, 'game', 'state');
 const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim());
+const getTeamsCollection = () => collection(db, 'teams');
 
 // --- ASSETS ---
 const SOUND_POINT = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/positive-point.mp3";
@@ -156,7 +157,7 @@ const BoonSpinner = ({ active, targetBoon }) => {
     );
 };
 
-const InventoryDrawer = ({ inventory, onClose, onUseBoon, allTeams, currentTeamName }) => {
+const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], currentTeamName }) => {
     const [selectedBoon, setSelectedBoon] = useState(null);
 
     const handleUse = (boonId) => {
@@ -853,6 +854,7 @@ export default function App() {
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [inventory, setInventory] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
@@ -865,7 +867,8 @@ export default function App() {
     const u1 = onSnapshot(getBuzzCollection(), (s) => setBuzzes(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.timestamp-b.timestamp)));
     const u2 = onSnapshot(getGameDoc(), (d) => setGameState(d.exists() ? d.data() : {mode:'LOBBY'}));
     const u3 = onSnapshot(getVoteCollection(), (s) => setVotes(s.docs.map(d=>({id:d.id,...d.data()}))));
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(getTeamsCollection(), (s) => setAllTeams(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { u1(); u2(); u3(); u4(); };
   }, [user]);
 
   useEffect(() => {
@@ -874,8 +877,9 @@ export default function App() {
     const unsub = onSnapshot(docRef, (docSnap) => {
        if (docSnap.exists()) {
           setInventory(docSnap.data().inventory || []);
+          if (!docSnap.data().name) setDoc(docRef, { name: teamName }, { merge: true });
        } else {
-          setDoc(docRef, { inventory: [] }, { merge: true });
+          setDoc(docRef, { inventory: [], name: teamName }, { merge: true });
        }
     });
     return () => unsub();
