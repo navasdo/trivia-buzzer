@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 
 // --- 0. SETTINGS & BOONS ---
-const HOST_PASSWORD = "20170621"; 
+const HOST_PASSWORD = "admin"; 
 
 const BOONS = {
   EXEC_ORDER: { 
@@ -89,7 +89,6 @@ const getBuzzCollection = () => collection(db, 'buzzes');
 const getVoteCollection = () => collection(db, 'votes');
 const getGameDoc = () => doc(db, 'game', 'state');
 const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim());
-const getTeamsCollection = () => collection(db, 'teams');
 
 // --- ASSETS ---
 const SOUND_POINT = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/positive-point.mp3";
@@ -157,7 +156,7 @@ const BoonSpinner = ({ active, targetBoon }) => {
     );
 };
 
-const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], currentTeamName }) => {
+const InventoryDrawer = ({ inventory, onClose, onUseBoon, allTeams, currentTeamName }) => {
     const [selectedBoon, setSelectedBoon] = useState(null);
 
     const handleUse = (boonId) => {
@@ -242,7 +241,8 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
     const myBuzzIndex = buzzes.findIndex(b => b.teamName && b.teamName.toLowerCase() === teamName.toLowerCase());
     const isBuzzed = myBuzzIndex !== -1;
     const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
-    
+    const [timeLeft, setTimeLeft] = useState(3500);
+
     // Silencer Logic
     const [silencedTime, setSilencedTime] = useState(0);
     const silencerInfo = gameState?.silenced?.find(s => s.target.toLowerCase() === teamName.toLowerCase());
@@ -257,8 +257,6 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
         }
     }, [silencerInfo, isBuzzed]);
 
-    // Countdown Logic
-    const [timeLeft, setTimeLeft] = useState(3500);
     useEffect(() => {
        if (firstBuzzTime && !isBuzzed) {
           const int = setInterval(() => {
@@ -419,6 +417,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   const [timer, setTimer] = useState(60);
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const [notification, setNotification] = useState(null); 
+  const [hostLightningTimer, setHostLightningTimer] = useState(3500);
   
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
@@ -463,9 +462,27 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
           if (Date.now() - timestamp < 5000) {
               const boon = BOONS[boonId];
               setNotification({ type: 'GOOD', icon: boon.icon, title: 'BOON ACTIVATED', message: boon.name, sub: `By ${teamName}` });
-              new Audio(SOUND_BOON_USED).play().catch(e => console.log(e));
+              
+              // Custom Fade for Boon Used
+              const audio = new Audio(SOUND_BOON_USED);
+              audio.play().catch(e => console.log(e));
+              const start = Date.now();
+              const dur = 2500;
+              const fadeStart = 1500;
+              const int = setInterval(() => {
+                  const elapsed = Date.now() - start;
+                  if (elapsed > fadeStart) {
+                      const vol = Math.max(0, 1 - ((elapsed - fadeStart) / (dur - fadeStart)));
+                      audio.volume = vol;
+                  }
+                  if (elapsed >= dur) {
+                      audio.pause();
+                      clearInterval(int);
+                  }
+              }, 50);
+
               const t = setTimeout(() => setNotification(null), 4000);
-              return () => clearTimeout(t);
+              return () => { clearTimeout(t); clearInterval(int); audio.pause(); };
           }
       }
   }, [gameState?.activeBoonUsage]);
@@ -520,6 +537,25 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
     return () => clearInterval(interval);
   }, [gameState?.mode, gameState?.hintRequest, timer]);
+
+  // Host Lightning Timer Loop
+  useEffect(() => {
+    if (gameState?.mode === 'LIGHTNING' && gameState?.boonRound?.phase === 'BUZZING' && buzzes.length > 0) {
+        const firstBuzzTime = buzzes[0].timestamp;
+        const interval = setInterval(() => {
+            const remaining = 3500 - (Date.now() - firstBuzzTime);
+            if (remaining <= 0) {
+                setHostLightningTimer(0);
+                clearInterval(interval);
+            } else {
+                setHostLightningTimer(remaining);
+            }
+        }, 16); 
+        return () => clearInterval(interval);
+    } else {
+        setHostLightningTimer(3500);
+    }
+  }, [gameState?.mode, gameState?.boonRound?.phase, buzzes]);
 
   const acceptCount = votes.filter(v => v.vote === 'accept').length;
   const rejectCount = votes.filter(v => v.vote === 'reject').length;
@@ -604,10 +640,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
 
     if (boonRound?.phase === 'BUZZING') {
-      const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
-      const timeLeft = firstBuzzTime ? Math.max(0, 3500 - (Date.now() - firstBuzzTime)) : 3500;
-      
-      const showHostCountdown = firstBuzzTime && timeLeft > 0;
+      const showHostCountdown = buzzes.length > 0 && hostLightningTimer > 0;
 
       return (
         <div className="min-h-screen bg-gray-900 text-white p-6 font-sans relative">
@@ -616,7 +649,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
           {showHostCountdown && (
               <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center pointer-events-none">
                   <div className="text-9xl font-black text-red-500 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">
-                      {(timeLeft/1000).toFixed(2)}s
+                      {(hostLightningTimer/1000).toFixed(2)}s
                   </div>
               </div>
           )}
@@ -820,7 +853,6 @@ export default function App() {
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [inventory, setInventory] = useState([]);
-  const [allTeams, setAllTeams] = useState([]);
   
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
@@ -833,8 +865,7 @@ export default function App() {
     const u1 = onSnapshot(getBuzzCollection(), (s) => setBuzzes(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.timestamp-b.timestamp)));
     const u2 = onSnapshot(getGameDoc(), (d) => setGameState(d.exists() ? d.data() : {mode:'LOBBY'}));
     const u3 = onSnapshot(getVoteCollection(), (s) => setVotes(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const u4 = onSnapshot(getTeamsCollection(), (s) => setAllTeams(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); u3(); };
   }, [user]);
 
   useEffect(() => {
@@ -843,9 +874,8 @@ export default function App() {
     const unsub = onSnapshot(docRef, (docSnap) => {
        if (docSnap.exists()) {
           setInventory(docSnap.data().inventory || []);
-          if (!docSnap.data().name) setDoc(docRef, { name: teamName }, { merge: true });
        } else {
-          setDoc(docRef, { inventory: [], name: teamName }, { merge: true });
+          setDoc(docRef, { inventory: [] }, { merge: true });
        }
     });
     return () => unsub();
