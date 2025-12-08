@@ -31,7 +31,8 @@ const BOONS = {
     name: 'The Silencer', 
     desc: 'Disable a rival team\'s buzzer for the first 1.5 seconds of a round.',
     icon: '🔇',
-    canActivate: true
+    canActivate: true,
+    requiresTarget: true
   },
   FILIBUSTER: { 
     id: 'FILIBUSTER', 
@@ -84,6 +85,7 @@ const getBuzzCollection = () => collection(db, 'buzzes');
 const getVoteCollection = () => collection(db, 'votes');
 const getGameDoc = () => doc(db, 'game', 'state');
 const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim());
+const getTeamsCollection = () => collection(db, 'teams');
 
 // --- ASSETS ---
 const SOUND_POINT = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/positive-point.mp3";
@@ -151,64 +153,127 @@ const BoonSpinner = ({ active, targetBoon }) => {
     );
 };
 
-const InventoryDrawer = ({ inventory, onClose, onUseBoon }) => (
-     <div className="fixed inset-0 bg-black/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
-        <div className="flex justify-between items-center mb-8">
-           <h2 className="text-3xl font-black text-white italic">YOUR BOONS</h2>
-           <button onClick={onClose} className="text-gray-400 text-xl font-bold">CLOSE</button>
-        </div>
-        {(!inventory || inventory.length === 0) ? (
-           <div className="text-center text-gray-500 mt-20">No boons collected... yet.</div>
-        ) : (
-           <div className="grid gap-4 overflow-y-auto">
-              {inventory.map((boonId, i) => {
-                 const boon = BOONS[boonId];
-                 return (
-                    <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
-                       <div className="flex items-center gap-4">
-                           <div className="text-4xl">{boon?.icon}</div>
-                           <div>
-                              <div className="font-bold text-white">{boon?.name}</div>
-                              <div className="text-xs text-gray-400 max-w-[200px]">{boon?.desc}</div>
-                           </div>
-                       </div>
-                       {boon?.canActivate && (
-                           <button onClick={() => { onUseBoon(boon.id); onClose(); }} className="bg-yellow-500 text-black font-black text-sm px-4 py-2 rounded-lg hover:bg-yellow-400">USE</button>
-                       )}
+const InventoryDrawer = ({ inventory, onClose, onUseBoon, allTeams, currentTeamName }) => {
+    const [selectedBoon, setSelectedBoon] = useState(null);
+
+    const handleUse = (boonId) => {
+        const boon = BOONS[boonId];
+        if (boon.requiresTarget) {
+            setSelectedBoon(boonId); 
+        } else {
+            onUseBoon(boonId, null);
+            onClose();
+        }
+    };
+
+    const handleTargetSelection = (targetTeam) => {
+        onUseBoon(selectedBoon, targetTeam);
+        onClose();
+    };
+
+    if (selectedBoon) {
+        // Filter out self
+        const targets = allTeams.filter(t => t.name && t.name.toLowerCase() !== currentTeamName.toLowerCase());
+        
+        return (
+            <div className="fixed inset-0 bg-black/95 z-[200] flex flex-col p-6 items-center justify-center text-center animate-in zoom-in duration-200">
+                <h3 className="text-2xl font-bold text-white mb-6 uppercase tracking-widest">Select Target</h3>
+                
+                {targets.length === 0 ? (
+                    <div className="text-gray-500 mb-6">No rival teams found.</div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-4 w-full max-w-md overflow-y-auto max-h-[60vh] mb-6">
+                        {targets.map(team => (
+                            <button 
+                                key={team.id}
+                                onClick={() => handleTargetSelection(team.name)}
+                                className="bg-gray-800 hover:bg-gray-700 border-2 border-gray-600 hover:border-red-500 text-white font-bold py-4 rounded-xl active:scale-95 transition-all"
+                            >
+                                {team.name}
+                            </button>
+                        ))}
                     </div>
-                 )
-              })}
-           </div>
-        )}
-     </div>
-);
+                )}
+
+                <button onClick={() => setSelectedBoon(null)} className="bg-gray-700 px-8 py-3 rounded-lg text-white font-bold">CANCEL</button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/95 z-[200] flex flex-col p-6 animate-in slide-in-from-bottom duration-300">
+            <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-black text-white italic">YOUR BOONS</h2>
+            <button onClick={onClose} className="text-gray-400 text-xl font-bold">CLOSE</button>
+            </div>
+            {(!inventory || inventory.length === 0) ? (
+            <div className="text-center text-gray-500 mt-20">No boons collected... yet.</div>
+            ) : (
+            <div className="grid gap-4 overflow-y-auto">
+                {inventory.map((boonId, i) => {
+                    const boon = BOONS[boonId];
+                    return (
+                        <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                        <div className="flex items-center gap-4">
+                            <div className="text-4xl">{boon?.icon}</div>
+                            <div>
+                                <div className="font-bold text-white">{boon?.name}</div>
+                                <div className="text-xs text-gray-400 max-w-[200px]">{boon?.desc}</div>
+                            </div>
+                        </div>
+                        {boon?.canActivate && (
+                            <button onClick={() => handleUse(boon.id)} className="bg-yellow-500 text-black font-black text-sm px-4 py-2 rounded-lg hover:bg-yellow-400">USE</button>
+                        )}
+                        </div>
+                    )
+                })}
+            </div>
+            )}
+        </div>
+    );
+};
 
 // Isolated Buzzer Component
-const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showInventory, setShowInventory, onUseBoon }) => {
+const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showInventory, setShowInventory, onUseBoon, gameState, allTeams }) => {
     const myBuzzIndex = buzzes.findIndex(b => b.teamName && b.teamName.toLowerCase() === teamName.toLowerCase());
     const isBuzzed = myBuzzIndex !== -1;
     const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
-    const [timeLeft, setTimeLeft] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(3500);
+
+    // Silencer Logic
+    const [silencedTime, setSilencedTime] = useState(0);
+    const silencerInfo = gameState?.silenced?.find(s => s.target.toLowerCase() === teamName.toLowerCase());
+    
+    useEffect(() => {
+        if (silencerInfo && !isBuzzed) {
+            setSilencedTime(1500);
+            const int = setInterval(() => {
+                setSilencedTime(prev => Math.max(0, prev - 100));
+            }, 100);
+            return () => clearInterval(int);
+        }
+    }, [silencerInfo, isBuzzed]);
 
     useEffect(() => {
        if (firstBuzzTime && !isBuzzed) {
           const int = setInterval(() => {
-             const diff = 5000 - (Date.now() - firstBuzzTime);
+             const diff = 3500 - (Date.now() - firstBuzzTime);
              if (diff <= 0) { setTimeLeft(0); clearInterval(int); } else setTimeLeft(diff);
           }, 30);
           return () => clearInterval(int);
        } else if (!firstBuzzTime) {
-           if(timeLeft !== 5000) setTimeLeft(5000);
+           if(timeLeft !== 3500) setTimeLeft(3500);
        }
     }, [firstBuzzTime, isBuzzed, timeLeft]);
 
-    const isWindowClosed = firstBuzzTime && (Date.now() - firstBuzzTime > 5000);
+    const isWindowClosed = firstBuzzTime && (Date.now() - firstBuzzTime > 3500);
     const isLocked = !isBuzzed && isWindowClosed;
+    const isSilenced = silencedTime > 0;
     const showCountdown = !isBuzzed && firstBuzzTime && !isWindowClosed;
 
     return (
        <div className={`min-h-screen relative flex flex-col items-center justify-center p-6 transition-colors duration-500 ${isBuzzed ? 'bg-green-900' : 'bg-gray-900'}`}>
-          {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} />}
+          {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
           
           <div className="absolute top-4 right-4 z-50">
               <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600 shadow-lg">
@@ -217,6 +282,12 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
           </div>
           <div className="absolute top-6 left-0 right-0 text-center"><span className="text-gray-500 text-sm font-bold uppercase tracking-widest">Playing as</span><h3 className="text-white text-2xl font-black italic">{teamName}</h3></div>
           
+          {silencerInfo && isSilenced && (
+              <div className="absolute top-20 bg-red-600 text-white px-4 py-2 rounded font-bold animate-pulse z-40">
+                  LOCKED BY {silencerInfo.user}!
+              </div>
+          )}
+
           <div className="mb-12 text-center h-20 flex items-center justify-center">
              {isBuzzed ? <div className="animate-bounce"><h1 className="text-6xl font-black text-white drop-shadow-lg">BUZZED!</h1><p className="text-xl text-green-300 font-bold mt-2">Rank: #{myBuzzIndex+1}</p></div> : 
               showCountdown ? <div><h1 className="text-6xl font-black text-red-500 animate-pulse tracking-tighter">{(timeLeft/1000).toFixed(2)}s</h1></div> :
@@ -224,8 +295,17 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
               <h1 className="text-4xl font-black text-cyan-400 animate-pulse">READY!</h1>}
           </div>
 
-          <button onClick={() => onBuzz(teamName)} disabled={isBuzzed || isLocked} className={`w-72 h-72 rounded-full border-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-200 ${isBuzzed ? 'bg-green-500 border-green-300 scale-110' : isLocked ? 'bg-gray-800 border-gray-600 opacity-50 cursor-not-allowed scale-90' : 'bg-red-600 border-red-400 hover:bg-red-500 active:bg-red-700 shadow-[0_0_40px_#dc2626]'}`}>
-             <span className="text-4xl font-black text-white uppercase tracking-widest pointer-events-none select-none">{isBuzzed ? 'LOCKED' : 'BUZZ'}</span>
+          <button 
+            onClick={() => onBuzz(teamName)} 
+            disabled={isBuzzed || isLocked || isSilenced} 
+            className={`w-72 h-72 rounded-full border-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex items-center justify-center transition-all duration-200 
+                ${isBuzzed ? 'bg-green-500 border-green-300 scale-110' : 
+                  (isLocked || isSilenced) ? 'bg-gray-800 border-gray-600 opacity-50 cursor-not-allowed scale-90' : 
+                  'bg-red-600 border-red-400 hover:bg-red-500 active:bg-red-700 shadow-[0_0_40px_#dc2626]'}`}
+          >
+             <span className="text-4xl font-black text-white uppercase tracking-widest pointer-events-none select-none">
+                 {isBuzzed ? 'LOCKED' : isSilenced ? 'SILENCED' : 'BUZZ'}
+             </span>
           </button>
        </div>
     );
@@ -519,9 +599,23 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
 
     if (boonRound?.phase === 'BUZZING') {
+      const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
+      const timeLeft = firstBuzzTime ? Math.max(0, 3500 - (Date.now() - firstBuzzTime)) : 3500;
+      
+      const showHostCountdown = firstBuzzTime && timeLeft > 0;
+
       return (
         <div className="min-h-screen bg-gray-900 text-white p-6 font-sans relative">
           <NotificationOverlay data={notification} />
+          
+          {showHostCountdown && (
+              <div className="absolute inset-0 bg-black/50 z-20 flex items-center justify-center pointer-events-none">
+                  <div className="text-9xl font-black text-red-500 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]">
+                      {(timeLeft/1000).toFixed(2)}s
+                  </div>
+              </div>
+          )}
+
           <div className="max-w-3xl mx-auto">
             <header className="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
               <div className="text-yellow-400 font-bold">PRIZE: {BOONS[boonRound.boonId].name}</div>
@@ -621,99 +715,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   }
 };
 
-const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory }) => {
-  const [showInventory, setShowInventory] = useState(false);
-
-  // --- JOIN SCREEN ---
-  if (!hasJoined) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl">
-          <h2 className="text-3xl font-black text-center text-white mb-6 uppercase italic">Identify Yourself</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if(teamName.trim()) setHasJoined(true); }} className="space-y-6">
-            <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} className="w-full bg-gray-900 border-2 border-gray-600 rounded-lg p-4 text-white text-xl font-bold" placeholder="e.g. The Quizzards" maxLength={20} />
-            <button type="submit" className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-xl py-4 rounded-lg uppercase tracking-widest shadow-lg">Enter Game</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // --- OVERLAYS ---
-  if (gameState?.djOffer && gameState.djOffer.team === teamName) return <DjOfferOverlay offer={gameState.djOffer} onDecision={onDjDecision} />;
-  
-  if (gameState?.boonRound && (gameState.boonRound.phase === 'SPINNING' || gameState.boonRound.phase === 'REVEAL')) {
-     const isSpinning = gameState.boonRound.phase === 'SPINNING';
-     return (
-        <div className="min-h-screen bg-indigo-900 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
-           <div className="text-yellow-400 font-black text-2xl mb-4 uppercase tracking-widest">{isSpinning ? 'SPINNING...' : 'PRIZE ROUND!'}</div>
-           <BoonSpinner active={isSpinning} targetBoon={BOONS[gameState.boonRound.boonId]} />
-           <div className="mt-12 text-sm font-bold text-indigo-400 animate-pulse">GET READY...</div>
-        </div>
-     )
-  }
-
-  // --- LIGHTNING ROUND ---
-  if (gameState?.mode === 'LIGHTNING') {
-     const boonRound = gameState.boonRound;
-     const phase = boonRound?.phase;
-
-     if (phase === 'BUZZING') return <LightningBuzzer buzzes={buzzes} teamName={teamName} onBuzz={onBuzz} inventory={inventory} showInventory={showInventory} setShowInventory={setShowInventory} onUseBoon={onUseBoon} />;
-     if (phase === 'GAUNTLET') {
-        const step = boonRound.step || 1;
-        const currentTeam = buzzes[step-1]?.teamName || "Nobody";
-        const boon = BOONS[boonRound.boonId];
-        return (
-           <div className="min-h-screen bg-indigo-900 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
-              <div className="text-gray-400 font-bold uppercase tracking-widest mb-4">Current Contender</div>
-              <h1 className="text-5xl font-black text-white mb-8">{currentTeam}</h1>
-              <div className="bg-indigo-800 p-6 rounded-xl border border-indigo-600">
-                 <div className="text-sm text-indigo-300 uppercase mb-1">Playing For</div>
-                 <div className="text-2xl font-bold text-white">{boon?.icon} {boon?.name}</div>
-              </div>
-           </div>
-        );
-     }
-     return <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center"><div className="animate-pulse text-xl text-cyan-400 font-bold">Get Ready...</div></div>;
-  }
-
-  // --- LOBBY/HINT DEFAULT ---
-  return (
-     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
-        {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} />}
-        <div className="absolute top-4 right-4">
-           <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600">
-              <span className="text-xl">🎒</span>
-              <span className="font-bold text-white">{inventory.length}</span>
-           </button>
-        </div>
-        
-        {gameState?.mode === 'HINT' && !gameState.hintRequest && (
-           <button onClick={() => onHintRequest(teamName)} className="w-64 h-64 rounded-xl bg-yellow-500 border-4 border-yellow-300 shadow-[0_0_40px_rgba(234,179,8,0.4)] flex flex-col items-center justify-center hover:bg-yellow-400 active:scale-95 transition-all">
-              <img src={ICON_HINT} className="w-24 h-24 mb-4 filter invert opacity-80" />
-              <span className="text-2xl font-black text-black uppercase tracking-widest">REQUEST HINT</span>
-           </button>
-        )}
-        
-        {gameState?.mode === 'HINT' && gameState.hintRequest && (
-           <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 max-w-sm w-full">
-              <h3 className="text-yellow-400 font-bold mb-4">HINT REQUESTED BY {gameState.hintRequest.team}</h3>
-              {gameState.hintRequest.team === teamName || votes.some(v => v.teamName === teamName) ? <div className="text-green-400 font-bold">Waiting for result...</div> : (
-                 <div className="space-y-4">
-                    <button onClick={() => onVote(teamName, 'accept')} className="w-full bg-green-600 text-white font-bold py-4 rounded">ACCEPT</button>
-                    <button onClick={() => onVote(teamName, 'reject')} className="w-full bg-red-600 text-white font-bold py-4 rounded">REJECT</button>
-                 </div>
-              )}
-           </div>
-        )}
-
-        {(!gameState?.mode || gameState.mode === 'LOBBY' || (gameState.mode === 'LIGHTNING' && !gameState.boonRound)) && (
-           <div className="animate-pulse text-xl text-cyan-400 font-bold">Waiting for host...</div>
-        )}
-     </div>
-  );
-};
-
 // --- MAIN APP ---
 export default function App() {
   const [user, setUser] = useState(null);
@@ -721,6 +722,7 @@ export default function App() {
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [inventory, setInventory] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
@@ -733,7 +735,8 @@ export default function App() {
     const u1 = onSnapshot(getBuzzCollection(), (s) => setBuzzes(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.timestamp-b.timestamp)));
     const u2 = onSnapshot(getGameDoc(), (d) => setGameState(d.exists() ? d.data() : {mode:'LOBBY'}));
     const u3 = onSnapshot(getVoteCollection(), (s) => setVotes(s.docs.map(d=>({id:d.id,...d.data()}))));
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(getTeamsCollection(), (s) => setAllTeams(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { u1(); u2(); u3(); u4(); };
   }, [user]);
 
   useEffect(() => {
@@ -742,8 +745,9 @@ export default function App() {
     const unsub = onSnapshot(docRef, (docSnap) => {
        if (docSnap.exists()) {
           setInventory(docSnap.data().inventory || []);
+          if (!docSnap.data().name) setDoc(docRef, { name: teamName }, { merge: true });
        } else {
-          setDoc(docRef, { inventory: [] }, { merge: true });
+          setDoc(docRef, { inventory: [], name: teamName }, { merge: true });
        }
     });
     return () => unsub();
@@ -831,14 +835,49 @@ export default function App() {
      }
   };
 
-  const handleUseBoon = (boonId) => {
+  const handleUseBoon = async (boonId, targetTeam = null) => {
+      // 1. HARDCODED EFFECTS
+      if (boonId === 'EXEC_ORDER') {
+          updateDoc(getGameDoc(), { hintOverride: 'PASS' });
+      }
+      else if (boonId === 'FILIBUSTER') {
+          updateDoc(getGameDoc(), { hintOverride: 'FAIL' });
+      }
+      else if (boonId === 'SILENCER' && targetTeam) {
+          updateDoc(getGameDoc(), { 
+              silenced: arrayUnion({ target: targetTeam, user: teamName, timestamp: Date.now() }) 
+          });
+      }
+      else if (boonId === 'PRIORITY') {
+          if (buzzes.length > 0) {
+             const myBuzz = buzzes.find(b => b.teamName === teamName);
+             const topBuzz = buzzes[0];
+             if (myBuzz && topBuzz && myBuzz.id !== topBuzz.id) {
+                 await updateDoc(doc(db, 'buzzes', myBuzz.id), { timestamp: topBuzz.timestamp - 1 });
+             }
+          }
+      }
+      else if (boonId === 'SLINGSHOT') {
+          if (buzzes.length >= 3) {
+             const myBuzz = buzzes.find(b => b.teamName === teamName);
+             const targetBuzz = buzzes[2]; 
+             if (myBuzz && targetBuzz && myBuzz.id !== targetBuzz.id) {
+                 await updateDoc(doc(db, 'buzzes', myBuzz.id), { timestamp: targetBuzz.timestamp - 1 });
+             }
+          }
+      }
+
+      // 2. Notify Host (Sound/Overlay)
       updateDoc(getGameDoc(), {
           activeBoonUsage: {
               boonId,
               teamName,
+              target: targetTeam,
               timestamp: Date.now()
           }
       });
+
+      // 3. Remove from Inventory
       const teamRef = getTeamDoc(teamName);
       updateDoc(teamRef, { inventory: arrayRemove(boonId) });
   };
@@ -917,6 +956,7 @@ export default function App() {
           hasJoined={hasJoined}
           setHasJoined={setHasJoined}
           inventory={inventory}
+          allTeams={allTeams}
         />
       )}
     </>
