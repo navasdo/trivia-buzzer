@@ -24,7 +24,8 @@ const BOONS = {
     name: 'Executive Order', 
     desc: 'Force a Hint Vote to PASS, regardless of the majority.',
     icon: '⚖️',
-    canActivate: true
+    canActivate: true,
+    requiresTarget: false
   },
   SILENCER: { 
     id: 'SILENCER', 
@@ -39,21 +40,24 @@ const BOONS = {
     name: 'The Filibuster', 
     desc: 'Force a Hint Vote to FAIL.',
     icon: '🛑',
-    canActivate: true
+    canActivate: true,
+    requiresTarget: false
   },
   PRIORITY: { 
     id: 'PRIORITY', 
     name: 'Priority Pass', 
     desc: 'Swap places with the 1st Place team.',
     icon: '⏩',
-    canActivate: true
+    canActivate: true,
+    requiresTarget: false
   },
   SLINGSHOT: {
     id: 'SLINGSHOT',
     name: 'The Slingshot',
     desc: 'Jump from "Too Slow" (4th+) to 3rd Place.',
     icon: '🚀',
-    canActivate: true
+    canActivate: true,
+    requiresTarget: false
   },
   DOUBLE_JEOPARDY: {
     id: 'DOUBLE_JEOPARDY',
@@ -153,7 +157,7 @@ const BoonSpinner = ({ active, targetBoon }) => {
     );
 };
 
-const InventoryDrawer = ({ inventory, onClose, onUseBoon, allTeams, currentTeamName }) => {
+const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], currentTeamName }) => {
     const [selectedBoon, setSelectedBoon] = useState(null);
 
     const handleUse = (boonId) => {
@@ -234,12 +238,11 @@ const InventoryDrawer = ({ inventory, onClose, onUseBoon, allTeams, currentTeamN
 };
 
 // Isolated Buzzer Component
-const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showInventory, setShowInventory, onUseBoon, gameState, allTeams }) => {
+const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showInventory, setShowInventory, onUseBoon, gameState, allTeams = [] }) => {
     const myBuzzIndex = buzzes.findIndex(b => b.teamName && b.teamName.toLowerCase() === teamName.toLowerCase());
     const isBuzzed = myBuzzIndex !== -1;
     const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
-    const [timeLeft, setTimeLeft] = useState(3500);
-
+    
     // Silencer Logic
     const [silencedTime, setSilencedTime] = useState(0);
     const silencerInfo = gameState?.silenced?.find(s => s.target.toLowerCase() === teamName.toLowerCase());
@@ -254,6 +257,8 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
         }
     }, [silencerInfo, isBuzzed]);
 
+    // Countdown Logic
+    const [timeLeft, setTimeLeft] = useState(3500);
     useEffect(() => {
        if (firstBuzzTime && !isBuzzed) {
           const int = setInterval(() => {
@@ -713,6 +718,99 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         </div>
      );
   }
+};
+
+const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
+  const [showInventory, setShowInventory] = useState(false);
+
+  // --- JOIN SCREEN ---
+  if (!hasJoined) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md bg-gray-800 p-8 rounded-2xl border border-gray-700 shadow-2xl">
+          <h2 className="text-3xl font-black text-center text-white mb-6 uppercase italic">Identify Yourself</h2>
+          <form onSubmit={(e) => { e.preventDefault(); if(teamName.trim()) setHasJoined(true); }} className="space-y-6">
+            <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)} className="w-full bg-gray-900 border-2 border-gray-600 rounded-lg p-4 text-white text-xl font-bold" placeholder="e.g. The Quizzards" maxLength={20} />
+            <button type="submit" className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-xl py-4 rounded-lg uppercase tracking-widest shadow-lg">Enter Game</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // --- OVERLAYS ---
+  if (gameState?.djOffer && gameState.djOffer.team === teamName) return <DjOfferOverlay offer={gameState.djOffer} onDecision={onDjDecision} />;
+  
+  if (gameState?.boonRound && (gameState.boonRound.phase === 'SPINNING' || gameState.boonRound.phase === 'REVEAL')) {
+     const isSpinning = gameState.boonRound.phase === 'SPINNING';
+     return (
+        <div className="min-h-screen bg-indigo-900 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+           <div className="text-yellow-400 font-black text-2xl mb-4 uppercase tracking-widest">{isSpinning ? 'SPINNING...' : 'PRIZE ROUND!'}</div>
+           <BoonSpinner active={isSpinning} targetBoon={BOONS[gameState.boonRound.boonId]} />
+           <div className="mt-12 text-sm font-bold text-indigo-400 animate-pulse">GET READY...</div>
+        </div>
+     )
+  }
+
+  // --- LIGHTNING ROUND ---
+  if (gameState?.mode === 'LIGHTNING') {
+     const boonRound = gameState.boonRound;
+     const phase = boonRound?.phase;
+
+     if (phase === 'BUZZING') return <LightningBuzzer buzzes={buzzes} teamName={teamName} onBuzz={onBuzz} inventory={inventory} showInventory={showInventory} setShowInventory={setShowInventory} onUseBoon={onUseBoon} gameState={gameState} allTeams={allTeams} />;
+     if (phase === 'GAUNTLET') {
+        const step = boonRound.step || 1;
+        const currentTeam = buzzes[step-1]?.teamName || "Nobody";
+        const boon = BOONS[boonRound.boonId];
+        return (
+           <div className="min-h-screen bg-indigo-900 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
+              <div className="text-gray-400 font-bold uppercase tracking-widest mb-4">Current Contender</div>
+              <h1 className="text-5xl font-black text-white mb-8">{currentTeam}</h1>
+              <div className="bg-indigo-800 p-6 rounded-xl border border-indigo-600">
+                 <div className="text-sm text-indigo-300 uppercase mb-1">Playing For</div>
+                 <div className="text-2xl font-bold text-white">{boon?.icon} {boon?.name}</div>
+              </div>
+           </div>
+        );
+     }
+     return <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center"><div className="animate-pulse text-xl text-cyan-400 font-bold">Get Ready...</div></div>;
+  }
+
+  // --- LOBBY/HINT DEFAULT ---
+  return (
+     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
+        {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
+        <div className="absolute top-4 right-4">
+           <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600">
+              <span className="text-xl">🎒</span>
+              <span className="font-bold text-white">{inventory.length}</span>
+           </button>
+        </div>
+        
+        {gameState?.mode === 'HINT' && !gameState.hintRequest && (
+           <button onClick={() => onHintRequest(teamName)} className="w-64 h-64 rounded-xl bg-yellow-500 border-4 border-yellow-300 shadow-[0_0_40px_rgba(234,179,8,0.4)] flex flex-col items-center justify-center hover:bg-yellow-400 active:scale-95 transition-all">
+              <img src={ICON_HINT} className="w-24 h-24 mb-4 filter invert opacity-80" />
+              <span className="text-2xl font-black text-black uppercase tracking-widest">REQUEST HINT</span>
+           </button>
+        )}
+        
+        {gameState?.mode === 'HINT' && gameState.hintRequest && (
+           <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 max-w-sm w-full">
+              <h3 className="text-yellow-400 font-bold mb-4">HINT REQUESTED BY {gameState.hintRequest.team}</h3>
+              {gameState.hintRequest.team === teamName || votes.some(v => v.teamName === teamName) ? <div className="text-green-400 font-bold">Waiting for result...</div> : (
+                 <div className="space-y-4">
+                    <button onClick={() => onVote(teamName, 'accept')} className="w-full bg-green-600 text-white font-bold py-4 rounded">ACCEPT</button>
+                    <button onClick={() => onVote(teamName, 'reject')} className="w-full bg-red-600 text-white font-bold py-4 rounded">REJECT</button>
+                 </div>
+              )}
+           </div>
+        )}
+
+        {(!gameState?.mode || gameState.mode === 'LOBBY' || (gameState.mode === 'LIGHTNING' && !gameState.boonRound)) && (
+           <div className="animate-pulse text-xl text-cyan-400 font-bold">Waiting for host...</div>
+        )}
+     </div>
+  );
 };
 
 // --- MAIN APP ---
