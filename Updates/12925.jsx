@@ -287,7 +287,7 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
     const myBuzzIndex = buzzes.findIndex(b => b.teamName && b.teamName.toLowerCase() === teamName.toLowerCase());
     const isBuzzed = myBuzzIndex !== -1;
     const firstBuzzTime = buzzes.length > 0 ? buzzes[0].timestamp : null;
-    const [timeLeft, setTimeLeft] = useState(3500);
+    const [timeLeft, setTimeLeft] = useState(LIGHTNING_TIMER_MS);
 
     // Silencer Logic
     const [silencedTime, setSilencedTime] = useState(0);
@@ -306,21 +306,21 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
     useEffect(() => {
        if (firstBuzzTime && !isBuzzed) {
           const int = setInterval(() => {
-             const diff = 3500 - (Date.now() - firstBuzzTime);
+             const diff = LIGHTNING_TIMER_MS - (Date.now() - firstBuzzTime);
              if (diff <= 0) { setTimeLeft(0); clearInterval(int); } else setTimeLeft(diff);
           }, 30);
           return () => clearInterval(int);
        } else if (!firstBuzzTime) {
-           if(timeLeft !== 3500) setTimeLeft(3500);
+           if(timeLeft !== LIGHTNING_TIMER_MS) setTimeLeft(LIGHTNING_TIMER_MS);
        }
     }, [firstBuzzTime, isBuzzed, timeLeft]);
 
-    const isWindowClosed = firstBuzzTime && (Date.now() - firstBuzzTime > 3500);
+    const isWindowClosed = firstBuzzTime && (Date.now() - firstBuzzTime > LIGHTNING_TIMER_MS);
     const isLocked = !isBuzzed && isWindowClosed;
     const isSilenced = silencedTime > 0;
     const showCountdown = !isBuzzed && firstBuzzTime && !isWindowClosed;
 
-    // --- NEW: LIVE LEADERBOARD VIEW (If Buzzed) ---
+    // --- LIVE LEADERBOARD VIEW (If Buzzed) ---
     if (isBuzzed) {
         const topThree = buzzes.slice(0, 3);
         const tooSlow = buzzes.slice(3);
@@ -621,7 +621,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       const audio = new Audio(SOUND_HINT_ALERT);
       audio.play().catch(e => console.log(e));
       hintAudioRef.current = audio;
-      let start = Date.now();
+      let start = gameState.hintRequest.timestamp;
       const dur = 10000;
       const int = setInterval(() => {
         const el = Date.now() - start;
@@ -677,7 +677,11 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   const acceptCount = votes.filter(v => v.vote === 'accept').length;
   const rejectCount = votes.filter(v => v.vote === 'reject').length;
-  const voteResult = votingTimeLeft === 0 ? (acceptCount > rejectCount ? 'PASSED' : 'REJECTED') : 'VOTING';
+  
+  // NEW VOTE LOGIC: 0 Votes = PASSED
+  const totalVotes = acceptCount + rejectCount;
+  const passed = totalVotes === 0 || acceptCount > rejectCount;
+  const voteResult = votingTimeLeft === 0 ? (passed ? 'PASSED' : 'REJECTED') : 'VOTING';
 
   // Result Sound
   const resultSoundPlayed = useRef(false);
@@ -686,10 +690,14 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       resultSoundPlayed.current = true;
       if (hintAudioRef.current) { hintAudioRef.current.pause(); hintAudioRef.current = null; }
       
-      const passed = acceptCount > rejectCount;
-      if (passed) {
+      // Calculate result again locally or assume consistent state
+      const acc = votes.filter(v => v.vote === 'accept').length;
+      const rej = votes.filter(v => v.vote === 'reject').length;
+      const tot = acc + rej;
+      const isPass = tot === 0 || acc > rej;
+
+      if (isPass) {
           new Audio(SOUND_POINT).play();
-          // PAUSE CLOCK ON PASS - Store current time to DB
           const currentT = Math.max(0, Math.ceil(60 - (Date.now() - gameState.hintTimerStart) / 1000));
           updateDoc(getGameDoc(), { hintTimerPaused: currentT });
       } else {
@@ -697,7 +705,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       }
     }
     if (votingTimeLeft > 0) resultSoundPlayed.current = false;
-  }, [votingTimeLeft, acceptCount, rejectCount, gameState?.hintRequest]);
+  }, [votingTimeLeft, acceptCount, rejectCount, gameState?.hintRequest, votes, gameState?.hintTimerStart]);
 
   // Double Jeopardy Overlay
   const DJOverlay = () => gameState?.djOffer ? (
@@ -848,30 +856,32 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
            <NotificationOverlay data={notification} />
            <header className="w-full max-w-4xl flex justify-between mb-8 pb-4 border-b border-gray-700"><button onClick={() => {onSetMode('LOBBY'); onClearVotes();}} className="text-gray-500 font-bold hover:text-white">← EXIT</button><h2 className="text-2xl font-bold text-pink-500 uppercase tracking-widest">HINT CLOCK</h2></header>
+           
+           {/* Synced Timer */}
            <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{hintTimer}</div>
+
+           {/* Pause/Resume for Host */}
+           {gameState.hintTimerPaused && (
+               <button 
+                 onClick={() => onResumeHint(hintTimer)}
+                 className="bg-green-600 hover:bg-green-500 text-white font-black text-3xl py-4 px-12 rounded-full shadow-[0_0_30px_rgba(34,197,94,0.6)] animate-bounce mb-8"
+               >
+                  RESUME CLOCK
+               </button>
+           )}
+
            {!gameState.hintRequest && <div className="text-gray-500 text-xl font-bold uppercase tracking-widest">Waiting for requests...</div>}
            {gameState.hintRequest && (
               <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
-                 <h1 className="text-4xl md:text-6xl font-black text-yellow-400 mb-6 text-center animate-pulse">HINT REQUESTED!</h1>
-                 <h2 className="text-2xl text-gray-300 mb-8 uppercase tracking-widest">By Team: <span className="text-white font-bold">{gameState.hintRequest.team}</span></h2>
-                 <div className="w-full max-w-2xl bg-gray-800 rounded-xl p-8 border-2 border-gray-600 relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-8">
-                       <div className="w-1/3">
-                          <h3 className="text-green-400 font-bold uppercase mb-4 border-b border-green-400/30 pb-2">Accepted ({acceptCount})</h3>
-                          <div className="space-y-2">{votes.filter(v => v.vote === 'accept').map(v => (<div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>))}</div>
-                       </div>
-                       <div className="w-1/3 flex justify-center"><img src={ICON_HINT} className="w-24 h-24 object-contain filter invert" /></div>
-                       <div className="w-1/3 text-right">
-                          <h3 className="text-red-400 font-bold uppercase mb-4 border-b border-red-400/30 pb-2">Rejected ({rejectCount})</h3>
-                          <div className="space-y-2">{votes.filter(v => v.vote === 'reject').map(v => (<div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>))}</div>
-                       </div>
-                    </div>
-                    {votingTimeLeft > 0 ? (
-                       <div className="w-full h-4 bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-400 transition-all duration-100 ease-linear" style={{width: `${votingTimeLeft}%`}}></div></div>
-                    ) : (
-                       <div className={`text-center text-4xl font-black uppercase py-4 ${voteResult === 'PASSED' ? 'text-green-400':'text-red-500'}`}>VOTE {voteResult}!</div>
-                    )}
-                 </div>
+                 {/* Shared Dashboard */}
+                 <HintVotingDashboard 
+                    hintRequest={gameState.hintRequest} 
+                    votes={votes} 
+                    votingTimeLeft={gameState.hintTimerPaused ? 0 : votingTimeLeft} 
+                    voteResult={voteResult}
+                    acceptCount={acceptCount} 
+                    rejectCount={rejectCount} 
+                 />
                  <button onClick={onClearVotes} className="mt-12 px-8 py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-bold rounded-lg border border-gray-600 uppercase tracking-widest">Clear & Resume</button>
               </div>
            )}
@@ -883,6 +893,25 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
   const [showInventory, setShowInventory] = useState(false);
   const [hintTimer, setHintTimer] = useState(60); // Player Side Timer
+  const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
+
+  // NEW EFFECT
+  useEffect(() => {
+    if (gameState?.hintRequest && !gameState.hintTimerPaused) {
+      const start = gameState.hintRequest.timestamp;
+      const int = setInterval(() => {
+         const el = Date.now() - start;
+         const pct = Math.max(0, 100 - (el / 10000) * 100);
+         setVotingTimeLeft(pct);
+         if (el >= 10000) clearInterval(int);
+      }, 100);
+      return () => clearInterval(int);
+    } else if (gameState?.hintTimerPaused) {
+      setVotingTimeLeft(0);
+    } else {
+      setVotingTimeLeft(100);
+    }
+  }, [gameState?.hintRequest, gameState?.hintTimerPaused]);
 
   // Synced Hint Timer Logic
   useEffect(() => {
@@ -958,6 +987,13 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
   const isRequester = gameState?.hintRequest?.team === teamName;
   const hasVoted = votes.some(v => v.teamName === teamName);
   const votingActive = gameState?.hintRequest && !gameState.hintTimerPaused; 
+  
+  // NEW VOTE LOGIC FOR PLAYER VIEW
+  const acceptCount = votes.filter(v => v.vote === 'accept').length;
+  const rejectCount = votes.filter(v => v.vote === 'reject').length;
+  const totalVotes = acceptCount + rejectCount;
+  const isPass = totalVotes === 0 || acceptCount > rejectCount;
+  const voteResult = isPass ? 'PASSED' : 'REJECTED';
 
   return (
      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
@@ -993,16 +1029,23 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                <HintVotingDashboard 
                    hintRequest={gameState.hintRequest} 
                    votes={votes} 
-                   votingTimeLeft={gameState.hintTimerPaused ? 0 : 100} // Force 0 if paused (vote over)
-                   voteResult={gameState.hintTimerPaused ? (votes.filter(v=>v.vote==='accept').length > votes.filter(v=>v.vote==='reject').length ? 'PASSED' : 'REJECTED') : 'VOTING'}
-                   acceptCount={votes.filter(v => v.vote === 'accept').length} 
-                   rejectCount={votes.filter(v => v.vote === 'reject').length} 
+                   votingTimeLeft={gameState.hintTimerPaused ? 0 : votingTimeLeft} 
+                   voteResult={(votingTimeLeft === 0 || gameState.hintTimerPaused) ? voteResult : 'VOTING'} 
+                   acceptCount={acceptCount} 
+                   rejectCount={rejectCount} 
                />
+
+               {/* ADDED: PLAYER ALERT */}
+               {!gameState.hintTimerPaused && (
+                   <div className="mt-4 mb-2 text-yellow-400 text-xs font-bold uppercase tracking-widest border border-yellow-400/30 p-2 rounded bg-yellow-400/10">
+                       ⚠️ IF NO ONE VOTES, HINT PASSES AUTOMATICALLY
+                   </div>
+               )}
 
                {/* VOTING BUTTONS */}
                {/* Only show if: Not Requester, Haven't Voted, Vote is still active (not paused) */}
                {!isRequester && !hasVoted && !gameState.hintTimerPaused && (
-                   <div className="grid grid-cols-2 gap-4 mt-6 animate-in slide-in-from-bottom">
+                   <div className="grid grid-cols-2 gap-4 mt-2 animate-in slide-in-from-bottom">
                         <button onClick={() => onVote(teamName, 'accept')} className="bg-green-600 hover:bg-green-500 text-white font-black text-xl py-4 rounded-xl shadow-lg border-b-4 border-green-800 active:translate-y-1 active:border-b-0">ACCEPT</button>
                         <button onClick={() => onVote(teamName, 'reject')} className="bg-red-600 hover:bg-red-500 text-white font-black text-xl py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:translate-y-1 active:border-b-0">REJECT</button>
                    </div>
