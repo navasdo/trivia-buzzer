@@ -157,7 +157,6 @@ const BoonSpinner = ({ active, targetBoon }) => {
     );
 };
 
-// *** RESTORED MISSING COMPONENT ***
 const HintVotingDashboard = ({ hintRequest, votes, votingTimeLeft, voteResult, acceptCount, rejectCount }) => (
     <div className="w-full max-w-2xl bg-gray-800 rounded-xl p-8 border-2 border-gray-600 relative overflow-hidden animate-in zoom-in duration-300">
         <h1 className="text-4xl md:text-5xl font-black text-yellow-400 mb-6 text-center animate-pulse">HINT REQUESTED!</h1>
@@ -1028,6 +1027,7 @@ export default function App() {
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [inventory, setInventory] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
@@ -1040,7 +1040,8 @@ export default function App() {
     const u1 = onSnapshot(getBuzzCollection(), (s) => setBuzzes(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.timestamp-b.timestamp)));
     const u2 = onSnapshot(getGameDoc(), (d) => setGameState(d.exists() ? d.data() : {mode:'LOBBY'}));
     const u3 = onSnapshot(getVoteCollection(), (s) => setVotes(s.docs.map(d=>({id:d.id,...d.data()}))));
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(getTeamsCollection(), (s) => setAllTeams(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { u1(); u2(); u3(); u4(); };
   }, [user]);
 
   useEffect(() => {
@@ -1234,9 +1235,11 @@ export default function App() {
            const promises = snap.docs.map(d => deleteDoc(d.ref));
            await Promise.all(promises);
         };
+
         await clearCol(getBuzzCollection());
         await clearCol(getVoteCollection());
         await clearCol(collection(db, 'teams'));
+        
         setDoc(getGameDoc(), { mode: 'LOBBY' });
      }
   };
