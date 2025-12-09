@@ -721,7 +721,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         <DJOverlay />
         <h2 className="text-4xl font-black italic mb-8">SELECT MODE</h2>
         <button onClick={() => onSetMode('LIGHTNING')} className="w-full max-w-md bg-cyan-600 hover:bg-cyan-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-cyan-800 active:border-b-0 active:translate-y-2">⚡ LIGHTNING ROUND</button>
-        <button onClick={() => { setTimer(60); onSetMode('HINT'); }} className="w-full max-w-md bg-pink-600 hover:bg-pink-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-pink-800 active:border-b-0 active:translate-y-2">⏱️ START HINT CLOCK</button>
+        <button onClick={() => { setHintTimer(60); onSetMode('HINT'); }} className="w-full max-w-md bg-pink-600 hover:bg-pink-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-pink-800 active:border-b-0 active:translate-y-2">⏱️ START HINT CLOCK</button>
         
         {gameState?.lastWinner?.boonId === 'DOUBLE_JEOPARDY' && (
              <div className="w-full max-w-md bg-purple-900/50 p-6 rounded-xl border-2 border-purple-500 mt-8 animate-pulse text-center">
@@ -849,32 +849,30 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
            <NotificationOverlay data={notification} />
            <header className="w-full max-w-4xl flex justify-between mb-8 pb-4 border-b border-gray-700"><button onClick={() => {onSetMode('LOBBY'); onClearVotes();}} className="text-gray-500 font-bold hover:text-white">← EXIT</button><h2 className="text-2xl font-bold text-pink-500 uppercase tracking-widest">HINT CLOCK</h2></header>
-           
-           {/* Synced Timer */}
            <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{hintTimer}</div>
-
-           {/* Pause/Resume for Host */}
-           {gameState.hintTimerPaused && (
-               <button 
-                 onClick={() => onResumeHint(hintTimer)}
-                 className="bg-green-600 hover:bg-green-500 text-white font-black text-3xl py-4 px-12 rounded-full shadow-[0_0_30px_rgba(34,197,94,0.6)] animate-bounce mb-8"
-               >
-                  RESUME CLOCK
-               </button>
-           )}
-
            {!gameState.hintRequest && <div className="text-gray-500 text-xl font-bold uppercase tracking-widest">Waiting for requests...</div>}
            {gameState.hintRequest && (
               <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
-                 {/* Shared Dashboard */}
-                 <HintVotingDashboard 
-                    hintRequest={gameState.hintRequest} 
-                    votes={votes} 
-                    votingTimeLeft={gameState.hintTimerPaused ? 0 : 100} // Force 0 if paused (vote over)
-                    voteResult={gameState.hintTimerPaused ? (votes.filter(v=>v.vote==='accept').length > votes.filter(v=>v.vote==='reject').length ? 'PASSED' : 'REJECTED') : 'VOTING'}
-                    acceptCount={votes.filter(v => v.vote === 'accept').length} 
-                    rejectCount={votes.filter(v => v.vote === 'reject').length} 
-                 />
+                 <h1 className="text-4xl md:text-6xl font-black text-yellow-400 mb-6 text-center animate-pulse">HINT REQUESTED!</h1>
+                 <h2 className="text-2xl text-gray-300 mb-8 uppercase tracking-widest">By Team: <span className="text-white font-bold">{gameState.hintRequest.team}</span></h2>
+                 <div className="w-full max-w-2xl bg-gray-800 rounded-xl p-8 border-2 border-gray-600 relative overflow-hidden">
+                    <div className="flex justify-between items-start mb-8">
+                       <div className="w-1/3">
+                          <h3 className="text-green-400 font-bold uppercase mb-4 border-b border-green-400/30 pb-2">Accepted ({acceptCount})</h3>
+                          <div className="space-y-2">{votes.filter(v => v.vote === 'accept').map(v => (<div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>))}</div>
+                       </div>
+                       <div className="w-1/3 flex justify-center"><img src={ICON_HINT} className="w-24 h-24 object-contain filter invert" /></div>
+                       <div className="w-1/3 text-right">
+                          <h3 className="text-red-400 font-bold uppercase mb-4 border-b border-red-400/30 pb-2">Rejected ({rejectCount})</h3>
+                          <div className="space-y-2">{votes.filter(v => v.vote === 'reject').map(v => (<div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>))}</div>
+                       </div>
+                    </div>
+                    {votingTimeLeft > 0 ? (
+                       <div className="w-full h-4 bg-gray-700 rounded-full overflow-hidden"><div className="h-full bg-yellow-400 transition-all duration-100 ease-linear" style={{width: `${votingTimeLeft}%`}}></div></div>
+                    ) : (
+                       <div className={`text-center text-4xl font-black uppercase py-4 ${voteResult === 'PASSED' ? 'text-green-400':'text-red-500'}`}>VOTE {voteResult}!</div>
+                    )}
+                 </div>
                  <button onClick={onClearVotes} className="mt-12 px-8 py-3 bg-gray-800 hover:bg-gray-700 text-gray-400 font-bold rounded-lg border border-gray-600 uppercase tracking-widest">Clear & Resume</button>
               </div>
            )}
@@ -1030,7 +1028,6 @@ export default function App() {
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [inventory, setInventory] = useState([]);
-  const [allTeams, setAllTeams] = useState([]);
   
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
@@ -1043,8 +1040,7 @@ export default function App() {
     const u1 = onSnapshot(getBuzzCollection(), (s) => setBuzzes(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.timestamp-b.timestamp)));
     const u2 = onSnapshot(getGameDoc(), (d) => setGameState(d.exists() ? d.data() : {mode:'LOBBY'}));
     const u3 = onSnapshot(getVoteCollection(), (s) => setVotes(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const u4 = onSnapshot(getTeamsCollection(), (s) => setAllTeams(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); u3(); };
   }, [user]);
 
   useEffect(() => {
