@@ -157,52 +157,6 @@ const BoonSpinner = ({ active, targetBoon }) => {
     );
 };
 
-// *** RESTORED MISSING COMPONENT ***
-const HintVotingDashboard = ({ hintRequest, votes, votingTimeLeft, voteResult, acceptCount, rejectCount }) => (
-    <div className="w-full max-w-2xl bg-gray-800 rounded-xl p-8 border-2 border-gray-600 relative overflow-hidden animate-in zoom-in duration-300">
-        <h1 className="text-4xl md:text-5xl font-black text-yellow-400 mb-6 text-center animate-pulse">HINT REQUESTED!</h1>
-        <h2 className="text-2xl text-gray-300 mb-8 uppercase tracking-widest text-center">By: <span className="text-white font-bold">{hintRequest.team}</span></h2>
-        
-        <div className="flex justify-between items-start mb-8">
-            {/* Accepted Column */}
-            <div className="w-1/3 text-center">
-                <h3 className="text-green-400 font-bold uppercase mb-4 border-b border-green-400/30 pb-2">Accepted ({acceptCount})</h3>
-                <div className="space-y-2">
-                    {votes.filter(v => v.vote === 'accept').map(v => (
-                        <div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Icon */}
-            <div className="w-1/3 flex justify-center">
-                <img src={ICON_HINT} className="w-24 h-24 object-contain filter invert" />
-            </div>
-
-            {/* Rejected Column */}
-            <div className="w-1/3 text-center">
-                <h3 className="text-red-400 font-bold uppercase mb-4 border-b border-red-400/30 pb-2">Rejected ({rejectCount})</h3>
-                <div className="space-y-2">
-                    {votes.filter(v => v.vote === 'reject').map(v => (
-                        <div key={v.id} className="text-sm font-bold truncate text-white">{v.teamName}</div>
-                    ))}
-                </div>
-            </div>
-        </div>
-
-        {/* Progress Bar */}
-        {votingTimeLeft > 0 ? (
-            <div className="w-full h-4 bg-gray-700 rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-400 transition-all duration-100 ease-linear" style={{ width: `${votingTimeLeft}%` }}></div>
-            </div>
-        ) : (
-            <div className={`text-center text-4xl font-black uppercase py-4 ${voteResult === 'PASSED' ? 'text-green-400' : 'text-red-500'}`}>
-                VOTE {voteResult}!
-            </div>
-        )}
-    </div>
-);
-
 const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], currentTeamName }) => {
     const [selectedBoon, setSelectedBoon] = useState(null);
 
@@ -321,70 +275,6 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
     const isSilenced = silencedTime > 0;
     const showCountdown = !isBuzzed && firstBuzzTime && !isWindowClosed;
 
-    // --- NEW: LIVE LEADERBOARD VIEW (If Buzzed) ---
-    if (isBuzzed) {
-        const topThree = buzzes.slice(0, 3);
-        const tooSlow = buzzes.slice(3);
-        const currentStep = gameState.boonRound?.step || 1;
-        const isGauntlet = gameState.boonRound?.phase === 'GAUNTLET';
-
-        return (
-            <div className={`min-h-screen relative flex flex-col items-center p-6 bg-gray-900 overflow-y-auto`}>
-                 {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
-                 
-                 <div className="absolute top-4 right-4 z-50">
-                    <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600 shadow-lg">
-                        <span className="text-xl">🎒</span><span className="font-bold text-white">{inventory.length}</span>
-                    </button>
-                 </div>
-                 
-                 <h2 className="text-2xl font-black text-cyan-400 mb-6 mt-16 uppercase tracking-widest">LIVE BOARD</h2>
-
-                 <div className="w-full max-w-lg space-y-4">
-                     {topThree.map((buzz, index) => {
-                         const isActive = isGauntlet && index === currentStep - 1;
-                         const isPassed = isGauntlet && index < currentStep - 1;
-                         const isMe = buzz.teamName === teamName;
-                         
-                         return (
-                            <div key={buzz.id} className={`relative p-4 rounded-xl border-2 flex items-center justify-between transition-all duration-500 
-                                ${isMe ? 'ring-2 ring-white shadow-lg' : ''}
-                                ${isActive ? 'bg-yellow-500/20 border-yellow-500 scale-105' : isPassed ? 'bg-red-900/30 border-red-900 opacity-50' : 'bg-gray-800 border-gray-700'}`}>
-                                <div className="flex items-center gap-4">
-                                    <img src={index === 0 ? ICON_1ST : index === 1 ? ICON_2ND : ICON_3RD} className="w-12 h-12 object-contain filter invert" />
-                                    <div>
-                                        <div className={`font-bold text-xl ${index === 0 ? 'text-white' : 'text-gray-300'}`}>{buzz.teamName}</div>
-                                        {isActive && <div className="text-xs text-yellow-400 font-bold uppercase animate-pulse">ANSWERING NOW...</div>}
-                                        {isPassed && <div className="text-xs text-red-500 font-bold uppercase">ELIMINATED</div>}
-                                    </div>
-                                </div>
-                                <span className="text-gray-500 font-mono text-xl opacity-50">#{index + 1}</span>
-                            </div>
-                         );
-                     })}
-                 </div>
-
-                 {tooSlow.length > 0 && (
-                     <div className="mt-8 border-t border-gray-700 pt-6 w-full max-w-lg">
-                         <div className="flex items-center justify-center gap-2 mb-4 opacity-50">
-                             <img src={ICON_SLOW} className="w-6 h-6 filter invert" />
-                             <h3 className="text-lg font-bold text-gray-400">TOO SLOW</h3>
-                         </div>
-                         <div className="grid grid-cols-1 gap-2 opacity-60">
-                             {tooSlow.map((buzz, i) => (
-                                 <div key={buzz.id} className={`bg-gray-800/50 p-2 rounded text-gray-400 text-sm flex justify-between ${buzz.teamName === teamName ? 'border border-gray-500' : ''}`}>
-                                     <span>{buzz.teamName}</span>
-                                     <span>#{i+4}</span>
-                                 </div>
-                             ))}
-                         </div>
-                     </div>
-                 )}
-            </div>
-        );
-    }
-
-    // --- DEFAULT BUZZER BUTTON VIEW ---
     return (
        <div className={`min-h-screen relative flex flex-col items-center justify-center p-6 transition-colors duration-500 ${isBuzzed ? 'bg-green-900' : 'bg-gray-900'}`}>
           {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
@@ -403,7 +293,8 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
           )}
 
           <div className="mb-12 text-center h-20 flex items-center justify-center">
-             {showCountdown ? <div><h1 className="text-6xl font-black text-red-500 animate-pulse tracking-tighter">{(timeLeft/1000).toFixed(2)}s</h1></div> :
+             {isBuzzed ? <div className="animate-bounce"><h1 className="text-6xl font-black text-white drop-shadow-lg">BUZZED!</h1><p className="text-xl text-green-300 font-bold mt-2">Rank: #{myBuzzIndex+1}</p></div> : 
+              showCountdown ? <div><h1 className="text-6xl font-black text-red-500 animate-pulse tracking-tighter">{(timeLeft/1000).toFixed(2)}s</h1></div> :
               isLocked ? <h1 className="text-4xl font-black text-gray-500">LOCKED OUT</h1> :
               <h1 className="text-4xl font-black text-cyan-400 animate-pulse">READY!</h1>}
           </div>
@@ -523,8 +414,8 @@ const Landing = ({ onChooseRole }) => {
 };
 
 // --- HOST VIEW ---
-const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy, onResumeHint }) => {
-  const [hintTimer, setHintTimer] = useState(60); 
+const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy }) => {
+  const [timer, setTimer] = useState(60);
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const [notification, setNotification] = useState(null); 
   const [hostLightningTimer, setHostLightningTimer] = useState(3500);
@@ -615,7 +506,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       }
   }, [gameState?.djResult]);
 
-  // Hint Logic - Start Vote Animation
+  // Hint Logic
   useEffect(() => {
     if (gameState?.hintRequest && !hintProcessed.current) {
       hintProcessed.current = true;
@@ -640,22 +531,13 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     }
   }, [gameState?.hintRequest]);
 
-  // Synced Hint Timer Logic
   useEffect(() => {
-    if (gameState?.mode === 'HINT') {
-        if (gameState.hintTimerPaused) {
-            setHintTimer(gameState.hintTimerPaused);
-        } else if (gameState.hintTimerStart) {
-            const interval = setInterval(() => {
-                const elapsed = (Date.now() - gameState.hintTimerStart) / 1000;
-                setHintTimer(Math.max(0, Math.ceil(60 - elapsed)));
-            }, 100);
-            return () => clearInterval(interval);
-        }
-    } else {
-      setHintTimer(60);
+    let interval;
+    if (gameState?.mode === 'HINT' && !gameState?.hintRequest && timer > 0) {
+      interval = setInterval(() => setTimer(t => t - 1), 1000);
     }
-  }, [gameState?.mode, gameState?.hintTimerStart, gameState?.hintTimerPaused]);
+    return () => clearInterval(interval);
+  }, [gameState?.mode, gameState?.hintRequest, timer]);
 
   // Host Lightning Timer Loop
   useEffect(() => {
@@ -680,22 +562,13 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   const rejectCount = votes.filter(v => v.vote === 'reject').length;
   const voteResult = votingTimeLeft === 0 ? (acceptCount > rejectCount ? 'PASSED' : 'REJECTED') : 'VOTING';
 
-  // Result Sound
   const resultSoundPlayed = useRef(false);
   useEffect(() => {
     if (votingTimeLeft === 0 && !resultSoundPlayed.current && gameState?.hintRequest) {
       resultSoundPlayed.current = true;
       if (hintAudioRef.current) { hintAudioRef.current.pause(); hintAudioRef.current = null; }
-      
-      const passed = acceptCount > rejectCount;
-      if (passed) {
-          new Audio(SOUND_POINT).play();
-          // PAUSE CLOCK ON PASS - Store current time to DB
-          const currentT = Math.max(0, Math.ceil(60 - (Date.now() - gameState.hintTimerStart) / 1000));
-          updateDoc(getGameDoc(), { hintTimerPaused: currentT });
-      } else {
-          new Audio(SOUND_FAIL).play();
-      }
+      if (acceptCount > rejectCount) new Audio(SOUND_POINT).play();
+      else new Audio(SOUND_FAIL).play();
     }
     if (votingTimeLeft > 0) resultSoundPlayed.current = false;
   }, [votingTimeLeft, acceptCount, rejectCount, gameState?.hintRequest]);
@@ -721,7 +594,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         <DJOverlay />
         <h2 className="text-4xl font-black italic mb-8">SELECT MODE</h2>
         <button onClick={() => onSetMode('LIGHTNING')} className="w-full max-w-md bg-cyan-600 hover:bg-cyan-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-cyan-800 active:border-b-0 active:translate-y-2">⚡ LIGHTNING ROUND</button>
-        <button onClick={() => { setHintTimer(60); onSetMode('HINT'); }} className="w-full max-w-md bg-pink-600 hover:bg-pink-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-pink-800 active:border-b-0 active:translate-y-2">⏱️ START HINT CLOCK</button>
+        <button onClick={() => { setTimer(60); onSetMode('HINT'); }} className="w-full max-w-md bg-pink-600 hover:bg-pink-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-pink-800 active:border-b-0 active:translate-y-2">⏱️ START HINT CLOCK</button>
         
         {gameState?.lastWinner?.boonId === 'DOUBLE_JEOPARDY' && (
              <div className="w-full max-w-md bg-purple-900/50 p-6 rounded-xl border-2 border-purple-500 mt-8 animate-pulse text-center">
@@ -849,7 +722,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
            <NotificationOverlay data={notification} />
            <header className="w-full max-w-4xl flex justify-between mb-8 pb-4 border-b border-gray-700"><button onClick={() => {onSetMode('LOBBY'); onClearVotes();}} className="text-gray-500 font-bold hover:text-white">← EXIT</button><h2 className="text-2xl font-bold text-pink-500 uppercase tracking-widest">HINT CLOCK</h2></header>
-           <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{hintTimer}</div>
+           <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{timer}</div>
            {!gameState.hintRequest && <div className="text-gray-500 text-xl font-bold uppercase tracking-widest">Waiting for requests...</div>}
            {gameState.hintRequest && (
               <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
@@ -883,24 +756,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
 const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
   const [showInventory, setShowInventory] = useState(false);
-  const [hintTimer, setHintTimer] = useState(60); // Player Side Timer
-
-  // Synced Hint Timer Logic
-  useEffect(() => {
-    if (gameState?.mode === 'HINT') {
-        if (gameState.hintTimerPaused) {
-            setHintTimer(gameState.hintTimerPaused);
-        } else if (gameState.hintTimerStart) {
-            const interval = setInterval(() => {
-                const elapsed = (Date.now() - gameState.hintTimerStart) / 1000;
-                setHintTimer(Math.max(0, Math.ceil(60 - elapsed)));
-            }, 100);
-            return () => clearInterval(interval);
-        }
-    } else {
-      setHintTimer(60);
-    }
-  }, [gameState?.mode, gameState?.hintTimerStart, gameState?.hintTimerPaused]);
 
   // --- JOIN SCREEN ---
   if (!hasJoined) {
@@ -956,10 +811,6 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
   }
 
   // --- LOBBY/HINT DEFAULT ---
-  const isRequester = gameState?.hintRequest?.team === teamName;
-  const hasVoted = votes.some(v => v.teamName === teamName);
-  const votingActive = gameState?.hintRequest && !gameState.hintTimerPaused; 
-
   return (
      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
         {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
@@ -970,17 +821,6 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
            </button>
         </div>
         
-        {/* ADDED: SYNCED TIMER DISPLAY */}
-        {gameState?.mode === 'HINT' && (
-           <div className="mb-8">
-              <h3 className="text-pink-500 font-bold text-sm uppercase tracking-widest mb-1">HINT CLOCK</h3>
-              <div className={`text-6xl font-black text-white tabular-nums leading-none ${gameState.hintTimerPaused ? 'animate-pulse text-yellow-400' : ''}`}>
-                 {hintTimer}s
-              </div>
-              {gameState.hintTimerPaused && <div className="text-yellow-400 font-bold text-sm mt-2">PAUSED - HINTING</div>}
-           </div>
-        )}
-        
         {gameState?.mode === 'HINT' && !gameState.hintRequest && (
            <button onClick={() => onHintRequest(teamName)} className="w-64 h-64 rounded-xl bg-yellow-500 border-4 border-yellow-300 shadow-[0_0_40px_rgba(234,179,8,0.4)] flex flex-col items-center justify-center hover:bg-yellow-400 active:scale-95 transition-all">
               <img src={ICON_HINT} className="w-24 h-24 mb-4 filter invert opacity-80" />
@@ -989,28 +829,14 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
         )}
         
         {gameState?.mode === 'HINT' && gameState.hintRequest && (
-           <div className="w-full max-w-md">
-               {/* SHARED DASHBOARD */}
-               <HintVotingDashboard 
-                   hintRequest={gameState.hintRequest} 
-                   votes={votes} 
-                   votingTimeLeft={gameState.hintTimerPaused ? 0 : 100} // Force 0 if paused (vote over)
-                   voteResult={gameState.hintTimerPaused ? (votes.filter(v=>v.vote==='accept').length > votes.filter(v=>v.vote==='reject').length ? 'PASSED' : 'REJECTED') : 'VOTING'}
-                   acceptCount={votes.filter(v => v.vote === 'accept').length} 
-                   rejectCount={votes.filter(v => v.vote === 'reject').length} 
-               />
-
-               {/* VOTING BUTTONS */}
-               {/* Only show if: Not Requester, Haven't Voted, Vote is still active (not paused) */}
-               {!isRequester && !hasVoted && !gameState.hintTimerPaused && (
-                   <div className="grid grid-cols-2 gap-4 mt-6 animate-in slide-in-from-bottom">
-                        <button onClick={() => onVote(teamName, 'accept')} className="bg-green-600 hover:bg-green-500 text-white font-black text-xl py-4 rounded-xl shadow-lg border-b-4 border-green-800 active:translate-y-1 active:border-b-0">ACCEPT</button>
-                        <button onClick={() => onVote(teamName, 'reject')} className="bg-red-600 hover:bg-red-500 text-white font-black text-xl py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:translate-y-1 active:border-b-0">REJECT</button>
-                   </div>
-               )}
-               
-               {hasVoted && !gameState.hintTimerPaused && <div className="mt-4 text-gray-500 italic">Vote submitted. Waiting for others...</div>}
-               {isRequester && !gameState.hintTimerPaused && <div className="mt-4 text-yellow-400 font-bold animate-pulse">Requesting...</div>}
+           <div className="bg-gray-800 p-8 rounded-xl border border-gray-700 max-w-sm w-full">
+              <h3 className="text-yellow-400 font-bold mb-4">HINT REQUESTED BY {gameState.hintRequest.team}</h3>
+              {gameState.hintRequest.team === teamName || votes.some(v => v.teamName === teamName) ? <div className="text-green-400 font-bold">Waiting for result...</div> : (
+                 <div className="space-y-4">
+                    <button onClick={() => onVote(teamName, 'accept')} className="w-full bg-green-600 text-white font-bold py-4 rounded">ACCEPT</button>
+                    <button onClick={() => onVote(teamName, 'reject')} className="w-full bg-red-600 text-white font-bold py-4 rounded">REJECT</button>
+                 </div>
+              )}
            </div>
         )}
 
@@ -1028,6 +854,7 @@ export default function App() {
   const [teamName, setTeamName] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [inventory, setInventory] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
   
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
@@ -1040,7 +867,8 @@ export default function App() {
     const u1 = onSnapshot(getBuzzCollection(), (s) => setBuzzes(s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.timestamp-b.timestamp)));
     const u2 = onSnapshot(getGameDoc(), (d) => setGameState(d.exists() ? d.data() : {mode:'LOBBY'}));
     const u3 = onSnapshot(getVoteCollection(), (s) => setVotes(s.docs.map(d=>({id:d.id,...d.data()}))));
-    return () => { u1(); u2(); u3(); };
+    const u4 = onSnapshot(getTeamsCollection(), (s) => setAllTeams(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { u1(); u2(); u3(); u4(); };
   }, [user]);
 
   useEffect(() => {
@@ -1059,21 +887,14 @@ export default function App() {
 
   const handleBuzz = (team) => addDoc(getBuzzCollection(), { teamName: team, timestamp: Date.now(), userId: user.uid });
   const handleResetBuzzers = async () => {
-     updateDoc(getGameDoc(), { 
-         boonRound: null, 
-         silenced: [] 
-     });
+     updateDoc(getGameDoc(), { boonRound: null });
      const snap = await getDocs(getBuzzCollection());
      snap.docs.forEach(d => deleteDoc(d.ref));
   };
   
   const handleSetMode = async (mode) => {
      const data = { mode };
-     if(mode==='HINT') {
-         data.hintRequest = null;
-         data.hintTimerStart = Date.now(); // ADDED
-         data.hintTimerPaused = null;
-     }
+     if(mode==='HINT') data.hintRequest = null;
      if (mode === 'LIGHTNING') {
          const currentState = gameState; 
          const usedBoons = currentState.usedBoons || [];
@@ -1094,8 +915,6 @@ export default function App() {
          setTimeout(() => {
              updateDoc(getGameDoc(), { 'boonRound.phase': 'REVEAL' });
          }, 4000);
-         // --- FIX: CLEAR SILENCED LIST ON NEW ROUND ---
-         data.silenced = [];
      }
      setDoc(getGameDoc(), data, { merge: true });
   }
@@ -1105,15 +924,7 @@ export default function App() {
   const handleClearVotes = async () => {
      const snap = await getDocs(getVoteCollection());
      snap.docs.forEach(d => deleteDoc(d.ref));
-     updateDoc(getGameDoc(), { hintRequest: null, hintTimerPaused: null });
-  };
-  
-  const handleResumeHint = (currentPausedTime) => {
-      // Calculate new start time based on remaining paused time
-      // remaining = 60 - elapsed
-      // newStart = Date.now() - (60 - remaining) * 1000
-      const newStart = Date.now() - ((60 - currentPausedTime) * 1000);
-      updateDoc(getGameDoc(), { hintTimerStart: newStart, hintTimerPaused: null });
+     updateDoc(getGameDoc(), { hintRequest: null });
   };
 
   const handleSelectBoon = (boonId) => {
@@ -1260,7 +1071,6 @@ export default function App() {
           onGauntletDecision={handleGauntletDecision}
           onFactoryReset={handleFactoryReset}
           onOfferDoubleJeopardy={handleOfferDoubleJeopardy}
-          onResumeHint={handleResumeHint}
         />
       )}
       {user && role === 'player' && (
