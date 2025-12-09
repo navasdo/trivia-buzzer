@@ -17,7 +17,6 @@ import {
 
 // --- 0. SETTINGS & BOONS ---
 const HOST_PASSWORD = "admin"; 
-const LIGHTNING_TIMER_MS = 3500; // 3.5 Seconds
 
 const BOONS = {
   EXEC_ORDER: { 
@@ -101,13 +100,14 @@ const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/r
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/hyper-focus.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
 const ICON_3RD = "https://img.icons8.com/?size=400&id=HXPvlWjuDyzs&format=png&color=000000";
 const ICON_SLOW = "https://img.icons8.com/?size=400&id=48261&format=png&color=000000";
 const ICON_HINT = "https://img.icons8.com/?size=400&id=44818&format=png&color=000000";
+const LIGHTNING_TIMER_MS = 3500; // 3.5 Seconds
 
 // --- SUB-COMPONENTS ---
 
@@ -282,6 +282,52 @@ const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], cu
             )}
         </div>
     );
+};
+
+// --- HYPER SPACE BACKGROUND EFFECT ---
+const HyperSpaceBg = () => {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-black z-0 pointer-events-none">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900 via-black to-black opacity-80"></div>
+      <style>{`
+        @keyframes warp-speed {
+          0% { transform: rotate(var(--angle)) translateY(0) scaleY(0); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: rotate(var(--angle)) translateY(800px) scaleY(4); opacity: 0; }
+        }
+        .star-streak {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          background: white;
+          width: 2px;
+          height: 40px;
+          border-radius: 50%;
+          transform-origin: center top;
+          box-shadow: 0 0 4px 2px white;
+        }
+      `}</style>
+      {[...Array(60)].map((_, i) => {
+        const angle = Math.random() * 360;
+        const delay = Math.random() * 2;
+        const dur = 0.5 + Math.random() * 0.5;
+        
+        return (
+          <div
+            key={i}
+            className="star-streak"
+            style={{
+              '--angle': `${angle}deg`,
+              animation: `warp-speed ${dur}s linear infinite`,
+              animationDelay: `-${delay}s`,
+              width: `${Math.random() * 3 + 1}px`,
+              opacity: 0,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
 };
 
 // Isolated Buzzer Component
@@ -1000,8 +1046,9 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
   // --- HYPER FOCUS MODE (Player View) ---
   if (gameState?.mode === 'HYPER_FOCUS') {
       return (
-          <div className="min-h-screen bg-purple-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
-              <div className="animate-in zoom-in fade-in duration-1000 slide-in-from-top-10">
+          <div className="min-h-screen bg-purple-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden relative">
+              <HyperSpaceBg /> {/* ADDED HERE */}
+              <div className="relative z-10 animate-in zoom-in fade-in duration-1000 slide-in-from-top-10">
                   <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-purple-400 drop-shadow-[0_0_30px_rgba(168,85,247,0.8)] mb-6 tracking-tighter">
                       HYPER FOCUS
                   </h1>
@@ -1010,18 +1057,18 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                   </h2>
               </div>
               
-              <div className="mt-12 max-w-xl bg-purple-800/40 p-6 rounded-xl border border-purple-500/50 backdrop-blur-sm animate-in slide-in-from-bottom fade-in duration-1000 delay-300 fill-mode-both">
-                  <p className="text-purple-200 text-lg md:text-xl font-medium mb-4">
-                      A player submitted this niche topic as their personal specialty!
+              <div className="relative z-10 mt-12 max-w-xl bg-purple-800/60 p-6 rounded-xl border border-purple-500/80 backdrop-blur-md animate-in slide-in-from-bottom fade-in duration-1000 delay-300 fill-mode-both shadow-2xl">
+                  <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
+                      One of your fellow teammates or opponents submitted this subject area as a specialty of theirs.
                   </p>
                   <div className="flex flex-col gap-2">
                      <div className="text-white font-bold text-2xl uppercase tracking-widest">
                         STAKES RAISED
                      </div>
-                     <div className="text-yellow-400 font-black text-3xl">
+                     <div className="text-yellow-400 font-black text-4xl drop-shadow-md">
                         +2 POINTS
                      </div>
-                     <div className="text-purple-400 text-sm font-bold uppercase">
+                     <div className="text-purple-300 text-sm font-bold uppercase tracking-wider">
                         (Standard Rounds: +1)
                      </div>
                   </div>
