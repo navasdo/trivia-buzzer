@@ -59,17 +59,10 @@ const BOONS = {
     icon: '🚀',
     canActivate: true,
     requiresTarget: false
-  },
-  DOUBLE_JEOPARDY: {
-    id: 'DOUBLE_JEOPARDY',
-    name: 'Double Jeopardy',
-    desc: 'Double or Nothing on the next round\'s opening question.',
-    icon: '🎲',
-    canActivate: false
   }
 };
 
-const BOON_KEYS = Object.keys(BOONS).filter(k => k !== 'DOUBLE_JEOPARDY');
+const BOON_KEYS = Object.keys(BOONS);
 
 // --- 1. CONFIGURATION ---
 const firebaseConfig = {
@@ -101,7 +94,7 @@ const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/r
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -263,6 +256,7 @@ const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], cu
             <div className="grid gap-4 overflow-y-auto">
                 {inventory.map((boonId, i) => {
                     const boon = BOONS[boonId];
+                    if (!boon) return null; // Safety check
                     return (
                         <div key={i} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
                         <div className="flex items-center gap-4">
@@ -518,7 +512,7 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
 
 // Isolated DJ Overlay
 const DjOfferOverlay = ({ offer, onDecision }) => {
-    const [djTimer, setDjTimer] = useState(10);
+    const [djTimer, setDjTimer] = useState(15);
     
     useEffect(() => {
         const int = setInterval(() => {
@@ -615,12 +609,13 @@ const Landing = ({ onChooseRole }) => {
 };
 
 // --- HOST VIEW ---
-const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy, onResumeHint, onStartFocusTimer, allTeams }) => {
+const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onResumeHint, onStartFocusTimer, onStartDJSession, onResetDJSession, allTeams }) => {
   const [hintTimer, setHintTimer] = useState(60); 
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const [notification, setNotification] = useState(null); 
   const [hostLightningTimer, setHostLightningTimer] = useState(3500);
   const [focusTimer, setFocusTimer] = useState(60); // Hyper Focus Timer
+  const [djTimer, setDjTimer] = useState(0); // DJ Window Timer
   
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
@@ -786,6 +781,19 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       }
   }, [gameState?.mode, gameState?.focusTimerStart]);
 
+  // Synced DJ Timer Logic
+  useEffect(() => {
+      if (gameState?.djWindow?.active) {
+          const interval = setInterval(() => {
+              const elapsed = (Date.now() - gameState.djWindow.startTime) / 1000;
+              setDjTimer(Math.max(0, Math.ceil(15 - elapsed)));
+          }, 100);
+          return () => clearInterval(interval);
+      } else {
+          setDjTimer(15);
+      }
+  }, [gameState?.djWindow]);
+
   // Host Lightning Timer Loop
   useEffect(() => {
     if (gameState?.mode === 'LIGHTNING' && gameState?.boonRound?.phase === 'BUZZING' && buzzes.length > 0) {
@@ -836,45 +844,57 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     if (votingTimeLeft > 0) resultSoundPlayed.current = false;
   }, [votingTimeLeft, acceptCount, rejectCount, gameState?.hintRequest, votes, gameState?.hintTimerStart]);
 
-  // Double Jeopardy Overlay
-  const DJOverlay = () => gameState?.djOffer ? (
-      <div className="fixed bottom-4 left-4 right-4 z-[90] bg-purple-900/90 border-t-4 border-purple-500 p-6 backdrop-blur-md animate-in slide-in-from-bottom">
-          <div className="flex justify-between items-center max-w-4xl mx-auto">
-              <div>
-                  <h3 className="text-purple-300 font-bold uppercase tracking-widest mb-1">DOUBLE JEOPARDY OFFERED TO:</h3>
-                  <div className="text-4xl font-black text-white">{gameState.djOffer.team}</div>
-              </div>
-              <div className="text-5xl animate-pulse">🎲</div>
-          </div>
-      </div>
-  ) : null;
-
   // 1. Dashboard
   if (!gameState?.mode || gameState.mode === 'LOBBY') {
     return (
       <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 space-y-8 relative">
         <NotificationOverlay data={notification} />
-        <DJOverlay />
         <h2 className="text-4xl font-black italic mb-8">SELECT MODE</h2>
         <button onClick={() => onSetMode('LIGHTNING')} className="w-full max-w-md bg-cyan-600 hover:bg-cyan-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-cyan-800 active:border-b-0 active:translate-y-2">⚡ LIGHTNING ROUND</button>
         <button onClick={() => { setHintTimer(60); onSetMode('HINT'); }} className="w-full max-w-md bg-pink-600 hover:bg-pink-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-pink-800 active:border-b-0 active:translate-y-2">⏱️ START HINT CLOCK</button>
         {/* NEW HYPER FOCUS BUTTON */}
         <button onClick={() => onSetMode('HYPER_FOCUS')} className="w-full max-w-md bg-purple-600 hover:bg-purple-500 text-white font-black text-3xl py-8 rounded-xl shadow-lg border-b-8 border-purple-800 active:border-b-0 active:translate-y-2">🔮 HYPER FOCUS</button>
         
-        {gameState?.lastWinner?.boonId === 'DOUBLE_JEOPARDY' && (
-             <div className="w-full max-w-md bg-purple-900/50 p-6 rounded-xl border-2 border-purple-500 mt-8 animate-pulse text-center">
-                 <h3 className="text-purple-200 font-bold uppercase mb-2">Double Jeopardy Winner</h3>
-                 <div className="text-2xl font-black text-white mb-4">{gameState.lastWinner.team}</div>
-                 <button onClick={() => onOfferDoubleJeopardy(gameState.lastWinner.team)} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black text-xl py-4 rounded-lg shadow-lg border-b-4 border-purple-800 active:border-b-0 active:translate-y-1">TRIGGER DECISION</button>
-             </div>
-        )}
+        {/* DOUBLE JEOPARDY OFFER SECTION */}
+        <div className="w-full max-w-md bg-gray-800 p-6 rounded-xl border border-gray-700 mt-8">
+            <h3 className="text-gray-400 text-sm font-bold uppercase mb-4 tracking-widest text-center">Double Jeopardy Control</h3>
+            
+            {!gameState.djWindow?.active ? (
+                <button 
+                    onClick={onStartDJSession} 
+                    className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold text-xl py-4 rounded-lg shadow-lg border-b-4 border-purple-800 active:translate-y-1 active:border-b-0"
+                >
+                    OFFER DOUBLE JEOPARDY (15s)
+                </button>
+            ) : (
+                <div className="text-center animate-in zoom-in duration-200">
+                    <div className="text-purple-300 font-bold uppercase text-xs mb-2">OFFERS OPEN FOR</div>
+                    <div className="text-5xl font-black text-white tabular-nums mb-4">{djTimer}s</div>
+                    
+                    <div className="bg-gray-900 rounded p-4 mb-4 text-left max-h-40 overflow-y-auto">
+                        <div className="flex justify-between items-center mb-2 border-b border-gray-700 pb-2">
+                             <span className="text-gray-400 text-xs font-bold uppercase">Accepted Teams</span>
+                             <span className="text-green-400 font-bold">{gameState.djAccepts?.length || 0}</span>
+                        </div>
+                        {gameState.djAccepts?.length === 0 ? (
+                            <div className="text-gray-600 italic text-sm">Waiting for responses...</div>
+                        ) : (
+                            <div className="space-y-1">
+                                {gameState.djAccepts.map(t => (
+                                    <div key={t} className="text-white font-bold text-sm">✅ {t}</div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
-        <div className="w-full max-w-md bg-gray-800 p-4 rounded-xl border border-gray-700 mt-8">
-            <h3 className="text-gray-400 text-sm font-bold uppercase mb-4">Manual DJ Override</h3>
-            <div className="flex gap-2">
-                <input id="djTeamInput" type="text" placeholder="Enter Team Name" className="flex-1 bg-gray-900 border border-gray-600 rounded px-4 text-white" />
-                <button onClick={() => { const team = document.getElementById('djTeamInput').value; if(team) onOfferDoubleJeopardy(team); }} className="bg-gray-600 hover:bg-gray-500 text-white font-bold px-4 py-2 rounded">OFFER</button>
-            </div>
+                    <button 
+                        onClick={onResetDJSession} 
+                        className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg border-b-4 border-red-800 active:translate-y-1 active:border-b-0"
+                    >
+                        RESET LIST & CLOSE
+                    </button>
+                </div>
+            )}
         </div>
 
         <div className="mt-12 pt-8 border-t border-gray-800 w-full max-w-md text-center">
@@ -1059,11 +1079,12 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   }
 };
 
-const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, onFocusDone, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
+const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, onFocusDone, onPlayerAcceptDJ, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
   const [showInventory, setShowInventory] = useState(false);
   const [hintTimer, setHintTimer] = useState(60); // Player Side Timer
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const [focusTimer, setFocusTimer] = useState(60); // Player side Hyper Focus Timer
+  const [djTimer, setDjTimer] = useState(15);
 
   // NEW EFFECT
   useEffect(() => {
@@ -1113,6 +1134,18 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
       }
   }, [gameState?.mode, gameState?.focusTimerStart]);
 
+  // Synced DJ Timer Logic (Player)
+  useEffect(() => {
+      if (gameState?.djWindow?.active) {
+          const interval = setInterval(() => {
+              const elapsed = (Date.now() - gameState.djWindow.startTime) / 1000;
+              setDjTimer(Math.max(0, Math.ceil(15 - elapsed)));
+          }, 100);
+          return () => clearInterval(interval);
+      }
+  }, [gameState?.djWindow]);
+
+
   // --- JOIN SCREEN ---
   if (!hasJoined) {
     return (
@@ -1142,6 +1175,51 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
      )
   }
 
+  // --- DJ GLOBAL WINDOW OVERLAY ---
+  // Only show if:
+  // 1. Window is active in game state
+  // 2. Player hasn't already accepted/been added to the list
+  // 3. (REMOVED: Player has the boon in inventory)
+  const hasAccepted = gameState?.djAccepts?.includes(teamName);
+  const isDjWindowOpen = gameState?.djWindow?.active && djTimer > 0;
+
+  if (isDjWindowOpen && !hasAccepted) {
+      return (
+          <div className="fixed inset-0 z-[200] bg-purple-900 flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
+              <div className="text-6xl mb-6 animate-bounce">🎲</div>
+              <h1 className="text-4xl font-black text-white mb-2">DOUBLE JEOPARDY!</h1>
+              <p className="text-purple-200 mb-8 text-lg">Cash in for this round?</p>
+              
+              <div className="text-8xl font-black text-white mb-8">{djTimer}</div>
+
+              <div className="space-y-4 w-full max-w-sm">
+                  <button 
+                      onClick={() => onPlayerAcceptDJ(teamName)} 
+                      className="w-full bg-green-500 hover:bg-green-400 text-black font-black text-2xl py-6 rounded-xl shadow-lg transform active:scale-95"
+                  >
+                      ACCEPT (DOUBLE IT)
+                  </button>
+                  <div className="text-purple-400 text-sm mt-4 font-bold">Offer expires when timer hits 0</div>
+              </div>
+          </div>
+      );
+  }
+
+  // --- CONFIRMATION SCREEN IF ACCEPTED ---
+  if (hasAccepted && gameState?.djWindow?.active) {
+       return (
+           <div className="fixed inset-0 z-[200] bg-green-900 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+               <div className="text-8xl mb-6">✅</div>
+               <h1 className="text-4xl font-black text-white mb-6">OFFER ACCEPTED!</h1>
+               <div className="bg-white/10 p-6 rounded-xl border-2 border-white/20 animate-pulse">
+                   <p className="text-green-300 text-xl font-bold uppercase tracking-widest mb-2">IMPORTANT</p>
+                   <p className="text-white text-2xl font-bold">Please check the box on your answer sheet NOW.</p>
+               </div>
+               <p className="text-gray-400 mt-12">Waiting for host to close window...</p>
+           </div>
+       );
+  }
+
   // --- HYPER FOCUS MODE (Player View) ---
   if (gameState?.mode === 'HYPER_FOCUS') {
       const isTimerRunning = !!gameState.focusTimerStart;
@@ -1149,7 +1227,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
 
       return (
           <div className="min-h-screen bg-purple-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden relative">
-              <HyperSpaceBg /> {/* ADDED HERE */}
+              <HyperSpaceBg /> 
               <div className="relative z-10 animate-in zoom-in fade-in duration-1000 slide-in-from-top-10">
                   <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-purple-400 drop-shadow-[0_0_30px_rgba(168,85,247,0.8)] mb-6 tracking-tighter">
                       HYPER FOCUS
@@ -1240,6 +1318,9 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
   // --- MARK AS DONE LOGIC ---
   const isDone = votes.some(v => v.teamName === teamName && v.vote === 'done');
 
+  // --- DOUBLE JEOPARDY OPT-IN CHECK ---
+  // (Old button removed in favor of global overlay above)
+  
   return (
      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
         {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
@@ -1268,7 +1349,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                     <span className="text-2xl font-black text-black uppercase tracking-widest">REQUEST HINT</span>
                 </button>
                 
-                {/* --- ADDED: MARK AS DONE BUTTON --- */}
+                {/* --- MARK AS DONE BUTTON --- */}
                 {isDone ? (
                     <div className="bg-green-600/50 text-white font-bold py-4 rounded-xl border-2 border-green-400 animate-pulse">
                          WAITING FOR OTHERS...
@@ -1293,7 +1374,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                    rejectCount={rejectCount} 
                />
 
-               {/* ADDED: PLAYER ALERT */}
+               {/* PLAYER ALERT */}
                {!gameState.hintTimerPaused && (
                    <div className="mt-4 mb-2 text-yellow-400 text-xs font-bold uppercase tracking-widest border border-yellow-400/30 p-2 rounded bg-yellow-400/10">
                        ⚠️ IF NO ONE VOTES, HINT PASSES AUTOMATICALLY
@@ -1537,11 +1618,12 @@ export default function App() {
       const team = gameState.djOffer.team;
       if (accepted) {
           const teamRef = getTeamDoc(team);
-          updateDoc(teamRef, { inventory: arrayRemove('DOUBLE_JEOPARDY') });
+          // updateDoc(teamRef, { inventory: arrayRemove('DOUBLE_JEOPARDY') }); // REMOVED: NO INVENTORY
           updateDoc(getGameDoc(), { 
               djOffer: null, 
               djResult: { outcome: 'ACCEPTED', team, timestamp: Date.now() },
-              lastBoonSpent: { boonId: 'DOUBLE_JEOPARDY', timestamp: Date.now() } 
+              djAccepts: arrayUnion(team), // Added to Global Accepted List
+              // lastBoonSpent: { boonId: 'DOUBLE_JEOPARDY', timestamp: Date.now() } // REMOVED
           });
       } else {
           updateDoc(getGameDoc(), { 
@@ -1549,6 +1631,34 @@ export default function App() {
               djResult: { outcome: 'REJECTED', team, timestamp: Date.now() }
           });
       }
+  };
+
+  const handleOpenDJWindow = () => {
+      updateDoc(getGameDoc(), { djOpen: true, djAccepts: [] });
+  };
+
+  const handleStartDJSession = () => {
+      updateDoc(getGameDoc(), { 
+          djWindow: { active: true, startTime: Date.now() }, 
+          djAccepts: [] 
+      });
+  };
+
+  const handleResetDJSession = () => {
+      updateDoc(getGameDoc(), { djWindow: null, djAccepts: [] });
+  };
+
+  const handlePlayerAcceptDJ = (teamName) => {
+      // REMOVED INVENTORY DELETION LOGIC
+      // const teamRef = getTeamDoc(teamName);
+      // updateDoc(teamRef, { inventory: arrayRemove('DOUBLE_JEOPARDY') });
+      
+      updateDoc(getGameDoc(), { djAccepts: arrayUnion(teamName) });
+      
+      // Optional: Sound/Notify that someone opted in
+      updateDoc(getGameDoc(), {
+          djResult: { outcome: 'ACCEPTED', team: teamName, timestamp: Date.now() }
+      });
   };
 
   const handleFactoryReset = async () => {
@@ -1588,6 +1698,8 @@ export default function App() {
           onOfferDoubleJeopardy={handleOfferDoubleJeopardy}
           onResumeHint={handleResumeHint}
           onStartFocusTimer={handleStartFocusTimer}
+          onStartDJSession={handleStartDJSession}
+          onResetDJSession={handleResetDJSession}
           allTeams={allTeams}
         />
       )}
@@ -1602,6 +1714,7 @@ export default function App() {
           onUseBoon={handleUseBoon}
           onDjDecision={handleDjDecision}
           onFocusDone={handleFocusDone}
+          onPlayerAcceptDJ={handlePlayerAcceptDJ}
           teamName={teamName}
           setTeamName={setTeamName}
           hasJoined={hasJoined}
