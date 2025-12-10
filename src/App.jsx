@@ -284,72 +284,95 @@ const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], cu
     );
 };
 
-// --- HYPER SPACE BACKGROUND EFFECT (MOBILE OPTIMIZED) ---
+// --- HYPER SPACE BACKGROUND EFFECT (CANVAS VERSION) ---
 const HyperSpaceBg = () => {
-  return (
-    <div className="absolute inset-0 overflow-hidden bg-black z-0 pointer-events-none">
-      <div 
-        className="absolute inset-0 opacity-80" 
-        style={{ background: 'radial-gradient(ellipse at center, #581c87 0%, #000000 60%, #000000 100%)' }}
-      ></div>
-      <style>{`
-        @keyframes warp-move {
-          0% { transform: translateY(0) scaleY(0); opacity: 0; }
-          20% { opacity: 1; }
-          100% { transform: translateY(800px) scaleY(4); opacity: 0; }
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    
+    // Star properties
+    const stars = [];
+    const numStars = 200; 
+    const speed = 15; 
+    const cx = width / 2;
+    const cy = height / 2;
+
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: (Math.random() - 0.5) * width * 2,
+        y: (Math.random() - 0.5) * height * 2,
+        z: Math.random() * width
+      });
+    }
+
+    let animationFrameId;
+
+    const render = () => {
+      // Clear with trail effect for motion blur
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; 
+      ctx.fillRect(0, 0, width, height);
+      
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+
+      stars.forEach(star => {
+        star.z -= speed;
+
+        if (star.z <= 0) {
+          star.z = width;
+          star.x = (Math.random() - 0.5) * width * 2;
+          star.y = (Math.random() - 0.5) * height * 2;
         }
-        @-webkit-keyframes warp-move {
-          0% { -webkit-transform: translateY(0) scaleY(0); opacity: 0; }
-          20% { opacity: 1; }
-          100% { -webkit-transform: translateY(800px) scaleY(4); opacity: 0; }
+
+        const k = 128.0 / star.z;
+        const px = star.x * k + cx;
+        const py = star.y * k + cy;
+
+        // Previous pos (trail)
+        const prevZ = star.z + speed * 2;
+        const prevK = 128.0 / prevZ;
+        const prevPx = star.x * prevK + cx;
+        const prevPy = star.y * prevK + cy;
+
+        if (px >= 0 && px <= width && py >= 0 && py <= height) {
+             const size = (1 - star.z / width) * 3;
+             ctx.lineWidth = size;
+             ctx.beginPath();
+             ctx.moveTo(prevPx, prevPy);
+             ctx.lineTo(px, py);
+             ctx.stroke();
         }
-        .star-streak {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          background: white;
-          width: 2px;
-          height: 40px;
-          border-radius: 50%;
-          transform-origin: center top;
-          box-shadow: 0 0 4px 2px white;
-          will-change: transform, opacity;
-        }
-      `}</style>
-      {[...Array(50)].map((_, i) => {
-        const angle = Math.random() * 360;
-        const delay = Math.random() * 2;
-        const dur = 0.5 + Math.random() * 0.5;
-        
-        return (
-          <div
-            key={i}
-            className="star-streak"
-            style={{
-              transform: `rotate(${angle}deg)`,
-              WebkitTransform: `rotate(${angle}deg)`
-            }}
-          >
-             <div 
-                style={{
-                    background: 'white',
-                    width: `${Math.random() * 3 + 1}px`,
-                    height: '100%',
-                    borderRadius: '50%',
-                    animation: `warp-move ${dur}s linear infinite`,
-                    WebkitAnimation: `warp-move ${dur}s linear infinite`,
-                    animationDelay: `-${delay}s`,
-                    WebkitAnimationDelay: `-${delay}s`,
-                    boxShadow: '0 0 4px 2px white',
-                    opacity: 0,
-                    willChange: 'transform, opacity'
-                }}
-             />
-          </div>
-        );
-      })}
-    </div>
-  );
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    const handleResize = () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    };
+    
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 z-0 bg-black pointer-events-none" />;
 };
 
 // Isolated Buzzer Component
@@ -708,7 +731,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       }
   }, [gameState?.djResult]);
 
-  // Hint Logic
+  // Hint Logic - Start Vote Animation
   useEffect(() => {
     if (gameState?.hintRequest && !hintProcessed.current) {
       hintProcessed.current = true;
@@ -1024,7 +1047,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   }
 };
 
-const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, onFocusDone, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
+const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams, onFocusDone }) => {
   const [showInventory, setShowInventory] = useState(false);
   const [hintTimer, setHintTimer] = useState(60); // Player Side Timer
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
