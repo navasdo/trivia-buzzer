@@ -101,7 +101,7 @@ const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/r
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -666,7 +666,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
           const audio = new Audio(SOUND_HYPER_FOCUS);
           audio.play().catch(e => console.log(e));
           
-          // Fade out logic for 4s duration
           let start = Date.now();
           const fadeInt = setInterval(() => {
              const elapsed = Date.now() - start;
@@ -821,7 +820,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       resultSoundPlayed.current = true;
       if (hintAudioRef.current) { hintAudioRef.current.pause(); hintAudioRef.current = null; }
       
-      // Calculate result again locally or assume consistent state
       const acc = votes.filter(v => v.vote === 'accept').length;
       const rej = votes.filter(v => v.vote === 'reject').length;
       const tot = acc + rej;
@@ -1015,6 +1013,9 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   // 3. Hint Clock
   if (gameState.mode === 'HINT') {
+      const readyCount = votes.filter(v => v.vote === 'done').length;
+      const totalTeams = allTeams.length; // Uses new prop
+
      return (
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
            <NotificationOverlay data={notification} />
@@ -1022,6 +1023,11 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
            
            {/* Synced Timer */}
            <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{hintTimer}</div>
+
+           {/* ADDED: READY COUNT DISPLAY */}
+           <div className="text-2xl text-green-400 font-bold uppercase tracking-widest mb-8">
+               {readyCount} / {totalTeams} TEAMS READY
+           </div>
 
            {/* Pause/Resume for Host */}
            {gameState.hintTimerPaused && (
