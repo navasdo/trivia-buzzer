@@ -101,7 +101,7 @@ const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/r
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -666,6 +666,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
           const audio = new Audio(SOUND_HYPER_FOCUS);
           audio.play().catch(e => console.log(e));
           
+          // Fade out logic for 4s duration
           let start = Date.now();
           const fadeInt = setInterval(() => {
              const elapsed = Date.now() - start;
@@ -1009,6 +1010,9 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   // 3. Hint Clock
   if (gameState.mode === 'HINT') {
+      const readyCount = votes.filter(v => v.vote === 'done').length;
+      const totalTeams = allTeams.length; // Uses new prop
+
      return (
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
            <NotificationOverlay data={notification} />
@@ -1016,6 +1020,11 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
            
            {/* Synced Timer */}
            <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{hintTimer}</div>
+
+           {/* ADDED: READY COUNT DISPLAY */}
+           <div className="text-2xl text-green-400 font-bold uppercase tracking-widest mb-8">
+               {readyCount} / {totalTeams} TEAMS READY
+           </div>
 
            {/* Pause/Resume for Host */}
            {gameState.hintTimerPaused && (
@@ -1047,7 +1056,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   }
 };
 
-const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams, onFocusDone }) => {
+const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, onFocusDone, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
   const [showInventory, setShowInventory] = useState(false);
   const [hintTimer, setHintTimer] = useState(60); // Player Side Timer
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
@@ -1169,7 +1178,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                   ) : (
                       <>
                         <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
-                            A player submitted this niche topic as their personal specialty!
+                            One of your fellow teammates or opponents submitted this subject area as a specialty of theirs.
                         </p>
                         <div className="flex flex-col gap-2">
                             <div className="text-white font-bold text-2xl uppercase tracking-widest">
@@ -1225,6 +1234,9 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
   const isPass = totalVotes === 0 || acceptCount > rejectCount;
   const voteResult = isPass ? 'PASSED' : 'REJECTED';
 
+  // --- MARK AS DONE LOGIC ---
+  const isDone = votes.some(v => v.teamName === teamName && v.vote === 'done');
+
   return (
      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
         {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
@@ -1247,10 +1259,23 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
         )}
         
         {gameState?.mode === 'HINT' && !gameState.hintRequest && (
-           <button onClick={() => onHintRequest(teamName)} className="w-64 h-64 rounded-xl bg-yellow-500 border-4 border-yellow-300 shadow-[0_0_40px_rgba(234,179,8,0.4)] flex flex-col items-center justify-center hover:bg-yellow-400 active:scale-95 transition-all">
-              <img src={ICON_HINT} className="w-24 h-24 mb-4 filter invert opacity-80" />
-              <span className="text-2xl font-black text-black uppercase tracking-widest">REQUEST HINT</span>
-           </button>
+           <div className="space-y-4 w-full max-w-sm">
+                <button onClick={() => onHintRequest(teamName)} className="w-full rounded-xl bg-yellow-500 border-4 border-yellow-300 shadow-[0_0_40px_rgba(234,179,8,0.4)] flex flex-col items-center justify-center hover:bg-yellow-400 active:scale-95 transition-all py-8">
+                    <img src={ICON_HINT} className="w-24 h-24 mb-4 filter invert opacity-80" />
+                    <span className="text-2xl font-black text-black uppercase tracking-widest">REQUEST HINT</span>
+                </button>
+                
+                {/* --- ADDED: MARK AS DONE BUTTON --- */}
+                {isDone ? (
+                    <div className="bg-green-600/50 text-white font-bold py-4 rounded-xl border-2 border-green-400 animate-pulse">
+                         WAITING FOR OTHERS...
+                    </div>
+                ) : (
+                    <button onClick={() => onFocusDone(teamName)} className="w-full bg-gray-800 hover:bg-gray-700 text-green-400 font-bold py-4 rounded-xl border-2 border-green-600 active:scale-95">
+                        MARK AS DONE
+                    </button>
+                )}
+           </div>
         )}
         
         {gameState?.mode === 'HINT' && gameState.hintRequest && (
@@ -1347,6 +1372,9 @@ export default function App() {
          data.hintRequest = null;
          data.hintTimerStart = Date.now(); // ADDED
          data.hintTimerPaused = null;
+         // Clear previous "Done" votes when starting new session
+         const snap = await getDocs(getVoteCollection());
+         snap.docs.forEach(d => deleteDoc(d.ref));
      }
      if(mode==='HYPER_FOCUS') {
          data.focusTimerStart = null;
