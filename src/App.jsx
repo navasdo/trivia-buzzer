@@ -17,6 +17,7 @@ import {
 
 // --- 0. SETTINGS & BOONS ---
 const HOST_PASSWORD = "admin"; 
+const LIGHTNING_TIMER_MS = 3500; // 3.5 Seconds
 
 const BOONS = {
   EXEC_ORDER: { 
@@ -107,7 +108,6 @@ const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&co
 const ICON_3RD = "https://img.icons8.com/?size=400&id=HXPvlWjuDyzs&format=png&color=000000";
 const ICON_SLOW = "https://img.icons8.com/?size=400&id=48261&format=png&color=000000";
 const ICON_HINT = "https://img.icons8.com/?size=400&id=44818&format=png&color=000000";
-const LIGHTNING_TIMER_MS = 3500; // 3.5 Seconds
 
 // --- SUB-COMPONENTS ---
 
@@ -284,16 +284,24 @@ const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], cu
     );
 };
 
-// --- HYPER SPACE BACKGROUND EFFECT ---
+// --- HYPER SPACE BACKGROUND EFFECT (MOBILE OPTIMIZED) ---
 const HyperSpaceBg = () => {
   return (
     <div className="absolute inset-0 overflow-hidden bg-black z-0 pointer-events-none">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900 via-black to-black opacity-80"></div>
+      <div 
+        className="absolute inset-0 opacity-80" 
+        style={{ background: 'radial-gradient(ellipse at center, #581c87 0%, #000000 60%, #000000 100%)' }}
+      ></div>
       <style>{`
         @keyframes warp-speed {
           0% { transform: rotate(var(--angle)) translateY(0) scaleY(0); opacity: 0; }
           20% { opacity: 1; }
           100% { transform: rotate(var(--angle)) translateY(800px) scaleY(4); opacity: 0; }
+        }
+        @-webkit-keyframes warp-speed {
+          0% { -webkit-transform: rotate(var(--angle)) translateY(0) scaleY(0); opacity: 0; }
+          20% { opacity: 1; }
+          100% { -webkit-transform: rotate(var(--angle)) translateY(800px) scaleY(4); opacity: 0; }
         }
         .star-streak {
           position: absolute;
@@ -305,6 +313,7 @@ const HyperSpaceBg = () => {
           border-radius: 50%;
           transform-origin: center top;
           box-shadow: 0 0 4px 2px white;
+          will-change: transform, opacity;
         }
       `}</style>
       {[...Array(60)].map((_, i) => {
@@ -1059,7 +1068,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
               
               <div className="relative z-10 mt-12 max-w-xl bg-purple-800/60 p-6 rounded-xl border border-purple-500/80 backdrop-blur-md animate-in slide-in-from-bottom fade-in duration-1000 delay-300 fill-mode-both shadow-2xl">
                   <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
-                      One of your fellow teammates or opponents submitted this subject area as a specialty of theirs.
+                      A player submitted this niche topic as their personal specialty!
                   </p>
                   <div className="flex flex-col gap-2">
                      <div className="text-white font-bold text-2xl uppercase tracking-widest">
