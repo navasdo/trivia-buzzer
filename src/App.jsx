@@ -86,7 +86,7 @@ const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim())
 const getTeamsCollection = () => collection(db, 'teams');
 
 // --- ASSETS ---
-const SOUND_POINT = "https://raw.githubusercontent.com/navasdo/navacite/refs/heads/main/templates/static/audio/point.mp3";
+const SOUND_POINT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/point.mp3";
 const SOUND_HINT_ALERT = "https://raw.githubusercontent.com/navasdo/navacite/refs/heads/main/templates/static/audio/hint-alert.mp3";
 const SOUND_FAIL = "https://www.myinstants.com/media/sounds/wrong-answer-sound-effect.mp3"; 
 const SOUND_TADA = "https://www.myinstants.com/media/sounds/tada-fanfare-sound-effect.mp3";
@@ -95,6 +95,7 @@ const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-bu
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
+const SOUND_DJ_OFFER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/double-jeopardy.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -622,6 +623,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   const hintAudioRef = useRef(null);
   const spinAudioRef = useRef(null);
   const hyperFocusRef = useRef(false);
+  const lastDjStartRef = useRef(0);
 
   // Sound: Buzz
   useEffect(() => {
@@ -653,6 +655,33 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
         new Audio(SOUND_BOON_SELECTED).play().catch(e => console.log(e));
     }
   }, [gameState?.boonRound?.phase]);
+
+  // Sound: DJ Offer (Host Only)
+  useEffect(() => {
+      if (gameState?.djWindow?.active) {
+          const currentStart = gameState.djWindow.startTime;
+          if (currentStart !== lastDjStartRef.current) {
+              lastDjStartRef.current = currentStart;
+              
+              const audio = new Audio(SOUND_DJ_OFFER);
+              audio.play().catch(e => console.log(e));
+              
+              // Play for 3s then fade out over 2s
+              const start = Date.now();
+              const fadeInt = setInterval(() => {
+                  const elapsed = Date.now() - start;
+                  if (elapsed > 3000) {
+                      const vol = Math.max(0, 1 - ((elapsed - 3000) / 2000));
+                      audio.volume = vol;
+                  }
+                  if (elapsed >= 5000) {
+                      audio.pause();
+                      clearInterval(fadeInt);
+                  }
+              }, 50);
+          }
+      }
+  }, [gameState?.djWindow]);
 
   // Sound: Hyper Focus
   useEffect(() => {
@@ -1188,8 +1217,8 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
           <div className="fixed inset-0 z-[200] bg-purple-900 flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-300">
               <div className="text-6xl mb-6 animate-bounce">🎲</div>
               <h1 className="text-4xl font-black text-white mb-2">DOUBLE JEOPARDY!</h1>
-              <p className="text-purple-200 mb-8 text-lg">Cash in for this round?</p>
-              
+              <p className="text-purple-200 mb-2 text-lg">Get this next question right to gain +2 points!</p>
+              <p className="text-purple-200 mb-8 text-lg">A wrong answer will net you 0 points.</p>
               <div className="text-8xl font-black text-white mb-8">{djTimer}</div>
 
               <div className="space-y-4 w-full max-w-sm">
@@ -1259,7 +1288,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                   ) : (
                       <>
                         <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
-                            A player submitted this niche topic as their personal specialty!
+                            One of your fellow teammates or opponents submitted this subject area as a specialty of theirs.
                         </p>
                         <div className="flex flex-col gap-2">
                             <div className="text-white font-bold text-2xl uppercase tracking-widest">
