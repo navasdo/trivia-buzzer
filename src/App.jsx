@@ -101,7 +101,7 @@ const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/r
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/navacite/refs/heads/main/templates/static/audio/hyper-focus.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -284,99 +284,72 @@ const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], cu
     );
 };
 
-// --- HYPER SPACE BACKGROUND EFFECT (CANVAS VERSION) ---
+// --- HYPER SPACE BACKGROUND EFFECT (MOBILE OPTIMIZED) ---
 const HyperSpaceBg = () => {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    let width = canvas.width = window.innerWidth;
-    let height = canvas.height = window.innerHeight;
-    
-    // Star properties
-    const stars = [];
-    const numStars = 150;
-    const speed = 20;
-
-    for (let i = 0; i < numStars; i++) {
-      stars.push({
-        x: Math.random() * width - width / 2,
-        y: Math.random() * height - height / 2,
-        z: Math.random() * width
-      });
-    }
-
-    let animationFrameId;
-
-    const render = () => {
-      // Clear with trail effect
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // Clear slightly transparent for trails
-      ctx.fillRect(0, 0, width, height);
-      
-      const cx = width / 2;
-      const cy = height / 2;
-
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#ffffff';
-
-      stars.forEach(star => {
-        // Move star closer
-        star.z -= speed;
-
-        // Reset if it passes screen
-        if (star.z <= 0) {
-          star.x = Math.random() * width - width / 2;
-          star.y = Math.random() * height - height / 2;
-          star.z = width;
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-black z-0 pointer-events-none">
+      <div 
+        className="absolute inset-0 opacity-80" 
+        style={{ background: 'radial-gradient(ellipse at center, #581c87 0%, #000000 60%, #000000 100%)' }}
+      ></div>
+      <style>{`
+        @keyframes warp-move {
+          0% { transform: translateY(0) scaleY(0); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: translateY(800px) scaleY(4); opacity: 0; }
         }
-
-        // Project to 2D
-        const k = 128.0 / star.z;
-        const px = star.x * k + cx;
-        const py = star.y * k + cy;
-
-        // Draw star size based on depth
-        const size = (1 - star.z / width) * 4;
+        @-webkit-keyframes warp-move {
+          0% { -webkit-transform: translateY(0) scaleY(0); opacity: 0; }
+          20% { opacity: 1; }
+          100% { -webkit-transform: translateY(800px) scaleY(4); opacity: 0; }
+        }
+        .star-streak {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          background: white;
+          width: 2px;
+          height: 40px;
+          border-radius: 50%;
+          transform-origin: center top;
+          box-shadow: 0 0 4px 2px white;
+          will-change: transform, opacity;
+        }
+      `}</style>
+      {[...Array(50)].map((_, i) => {
+        const angle = Math.random() * 360;
+        const delay = Math.random() * 2;
+        const dur = 0.5 + Math.random() * 0.5;
         
-        // Draw "streak"
-        const prevZ = star.z + speed * 1.5; // Look back in time for trail
-        const prevK = 128.0 / prevZ;
-        const prevPx = star.x * prevK + cx;
-        const prevPy = star.y * prevK + cy;
-
-        ctx.beginPath();
-        ctx.moveTo(prevPx, prevPy);
-        ctx.lineTo(px, py);
-        ctx.lineWidth = size;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(px, py, size / 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-    
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="absolute inset-0 z-0 bg-black" />;
+        return (
+          <div
+            key={i}
+            className="star-streak"
+            style={{
+              transform: `rotate(${angle}deg)`,
+              WebkitTransform: `rotate(${angle}deg)`
+            }}
+          >
+             <div 
+                style={{
+                    background: 'white',
+                    width: `${Math.random() * 3 + 1}px`,
+                    height: '100%',
+                    borderRadius: '50%',
+                    animation: `warp-move ${dur}s linear infinite`,
+                    WebkitAnimation: `warp-move ${dur}s linear infinite`,
+                    animationDelay: `-${delay}s`,
+                    WebkitAnimationDelay: `-${delay}s`,
+                    boxShadow: '0 0 4px 2px white',
+                    opacity: 0,
+                    willChange: 'transform, opacity'
+                }}
+             />
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
 // Isolated Buzzer Component
@@ -619,11 +592,12 @@ const Landing = ({ onChooseRole }) => {
 };
 
 // --- HOST VIEW ---
-const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy, onResumeHint }) => {
+const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onOfferDoubleJeopardy, onResumeHint, onStartFocusTimer, allTeams }) => {
   const [hintTimer, setHintTimer] = useState(60); 
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const [notification, setNotification] = useState(null); 
   const [hostLightningTimer, setHostLightningTimer] = useState(3500);
+  const [focusTimer, setFocusTimer] = useState(60); // Hyper Focus Timer
   
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
@@ -669,7 +643,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
           const audio = new Audio(SOUND_HYPER_FOCUS);
           audio.play().catch(e => console.log(e));
           
-          // Fade out logic for 4s duration
           let start = Date.now();
           const fadeInt = setInterval(() => {
              const elapsed = Date.now() - start;
@@ -735,7 +708,7 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       }
   }, [gameState?.djResult]);
 
-  // Hint Logic - Start Vote Animation
+  // Hint Logic
   useEffect(() => {
     if (gameState?.hintRequest && !hintProcessed.current) {
       hintProcessed.current = true;
@@ -776,6 +749,19 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
       setHintTimer(60);
     }
   }, [gameState?.mode, gameState?.hintTimerStart, gameState?.hintTimerPaused]);
+  
+  // Synced Hyper Focus Timer Logic
+  useEffect(() => {
+      if (gameState?.mode === 'HYPER_FOCUS' && gameState?.focusTimerStart) {
+          const interval = setInterval(() => {
+              const elapsed = (Date.now() - gameState.focusTimerStart) / 1000;
+              setFocusTimer(Math.max(0, Math.ceil(60 - elapsed)));
+          }, 100);
+          return () => clearInterval(interval);
+      } else {
+          setFocusTimer(60);
+      }
+  }, [gameState?.mode, gameState?.focusTimerStart]);
 
   // Host Lightning Timer Loop
   useEffect(() => {
@@ -798,20 +784,15 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   const acceptCount = votes.filter(v => v.vote === 'accept').length;
   const rejectCount = votes.filter(v => v.vote === 'reject').length;
-  
-  // NEW VOTE LOGIC: 0 Votes = PASSED
-  const totalVotes = acceptCount + rejectCount;
-  const passed = totalVotes === 0 || acceptCount > rejectCount;
+  const passed = (acceptCount + rejectCount) === 0 || acceptCount > rejectCount;
   const voteResult = votingTimeLeft === 0 ? (passed ? 'PASSED' : 'REJECTED') : 'VOTING';
 
-  // Result Sound
   const resultSoundPlayed = useRef(false);
   useEffect(() => {
     if (votingTimeLeft === 0 && !resultSoundPlayed.current && gameState?.hintRequest) {
       resultSoundPlayed.current = true;
       if (hintAudioRef.current) { hintAudioRef.current.pause(); hintAudioRef.current = null; }
       
-      // Calculate result again locally or assume consistent state
       const acc = votes.filter(v => v.vote === 'accept').length;
       const rej = votes.filter(v => v.vote === 'reject').length;
       const tot = acc + rej;
@@ -876,12 +857,32 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     );
   }
 
-  // 4. Hyper Focus Mode (Host View - Mostly passive or just a reset button)
+  // 4. Hyper Focus Mode (Host View)
   if (gameState.mode === 'HYPER_FOCUS') {
+      const readyCount = votes.filter(v => v.vote === 'done').length;
+      const totalTeams = allTeams.length; // Uses new prop
+
       return (
           <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-center p-6">
               <h1 className="text-5xl font-black text-purple-400 mb-8 animate-pulse">HYPER FOCUS ACTIVE</h1>
-              <button onClick={() => onSetMode('LOBBY')} className="bg-gray-700 hover:bg-gray-600 text-white font-bold text-2xl py-6 px-12 rounded-xl">RETURN TO LOBBY</button>
+              
+              {!gameState.focusTimerStart ? (
+                  <button 
+                      onClick={onStartFocusTimer}
+                      className="bg-purple-600 hover:bg-purple-500 text-white font-black text-3xl py-8 px-12 rounded-xl shadow-lg border-b-8 border-purple-800 active:translate-y-2 active:border-b-0"
+                  >
+                      BEGIN FOCUS TIMER
+                  </button>
+              ) : (
+                  <div className="space-y-8 animate-in zoom-in duration-300">
+                      <div className="text-[10rem] font-black text-white leading-none tabular-nums">{focusTimer}s</div>
+                      <div className="text-2xl text-purple-300 font-bold uppercase tracking-widest">
+                          {readyCount} / {totalTeams} TEAMS READY
+                      </div>
+                  </div>
+              )}
+              
+              <button onClick={() => onSetMode('LOBBY')} className="mt-12 bg-gray-700 hover:bg-gray-600 text-white font-bold text-xl py-4 px-8 rounded-lg">EXIT TO LOBBY</button>
           </div>
       )
   }
@@ -1023,10 +1024,11 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   }
 };
 
-const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
+const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, onUseBoon, onDjDecision, onFocusDone, teamName, setTeamName, hasJoined, setHasJoined, inventory, allTeams }) => {
   const [showInventory, setShowInventory] = useState(false);
   const [hintTimer, setHintTimer] = useState(60); // Player Side Timer
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
+  const [focusTimer, setFocusTimer] = useState(60); // Player side Hyper Focus Timer
 
   // NEW EFFECT
   useEffect(() => {
@@ -1063,6 +1065,19 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
     }
   }, [gameState?.mode, gameState?.hintTimerStart, gameState?.hintTimerPaused]);
 
+  // Synced Hyper Focus Timer Logic (Player)
+  useEffect(() => {
+      if (gameState?.mode === 'HYPER_FOCUS' && gameState?.focusTimerStart) {
+          const interval = setInterval(() => {
+              const elapsed = (Date.now() - gameState.focusTimerStart) / 1000;
+              setFocusTimer(Math.max(0, Math.ceil(60 - elapsed)));
+          }, 100);
+          return () => clearInterval(interval);
+      } else {
+          setFocusTimer(60);
+      }
+  }, [gameState?.mode, gameState?.focusTimerStart]);
+
   // --- JOIN SCREEN ---
   if (!hasJoined) {
     return (
@@ -1094,6 +1109,9 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
 
   // --- HYPER FOCUS MODE (Player View) ---
   if (gameState?.mode === 'HYPER_FOCUS') {
+      const isTimerRunning = !!gameState.focusTimerStart;
+      const isDone = votes.some(v => v.teamName === teamName && v.vote === 'done');
+
       return (
           <div className="min-h-screen bg-purple-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden relative">
               <HyperSpaceBg /> {/* ADDED HERE */}
@@ -1107,20 +1125,42 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
               </div>
               
               <div className="relative z-10 mt-12 max-w-xl bg-purple-800/60 p-6 rounded-xl border border-purple-500/80 backdrop-blur-md animate-in slide-in-from-bottom fade-in duration-1000 delay-300 fill-mode-both shadow-2xl">
-                  <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
-                      A player submitted this niche topic as their personal specialty!
-                  </p>
-                  <div className="flex flex-col gap-2">
-                     <div className="text-white font-bold text-2xl uppercase tracking-widest">
-                        STAKES RAISED
-                     </div>
-                     <div className="text-yellow-400 font-black text-4xl drop-shadow-md">
-                        +2 POINTS
-                     </div>
-                     <div className="text-purple-300 text-sm font-bold uppercase tracking-wider">
-                        (Standard Rounds: +1)
-                     </div>
-                  </div>
+                  {isTimerRunning ? (
+                      <div className="animate-in zoom-in duration-300">
+                         <div className="text-white font-bold text-lg mb-2 uppercase tracking-widest">TIME REMAINING</div>
+                         <div className="text-6xl font-black text-white tabular-nums mb-6">{focusTimer}s</div>
+                         
+                         {isDone ? (
+                             <div className="bg-green-600/50 text-white font-bold py-4 rounded-xl border-2 border-green-400 animate-pulse">
+                                 WAITING FOR OTHERS...
+                             </div>
+                         ) : (
+                             <button 
+                                onClick={() => onFocusDone(teamName)}
+                                className="w-full bg-green-500 hover:bg-green-400 text-black font-black text-2xl py-4 rounded-xl shadow-lg transform active:scale-95"
+                             >
+                                MARK AS DONE
+                             </button>
+                         )}
+                      </div>
+                  ) : (
+                      <>
+                        <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
+                            A player submitted this niche topic as their personal specialty!
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <div className="text-white font-bold text-2xl uppercase tracking-widest">
+                                STAKES RAISED
+                            </div>
+                            <div className="text-yellow-400 font-black text-4xl drop-shadow-md">
+                                +2 POINTS
+                            </div>
+                            <div className="text-purple-300 text-sm font-bold uppercase tracking-wider">
+                                (Standard Rounds: +1)
+                            </div>
+                        </div>
+                      </>
+                  )}
               </div>
           </div>
       );
@@ -1285,6 +1325,12 @@ export default function App() {
          data.hintTimerStart = Date.now(); // ADDED
          data.hintTimerPaused = null;
      }
+     if(mode==='HYPER_FOCUS') {
+         data.focusTimerStart = null;
+         // Clear previous "Done" votes when starting new session
+         const snap = await getDocs(getVoteCollection());
+         snap.docs.forEach(d => deleteDoc(d.ref));
+     }
      if (mode === 'LIGHTNING') {
          const currentState = gameState; 
          const usedBoons = currentState.usedBoons || [];
@@ -1325,6 +1371,17 @@ export default function App() {
       // newStart = Date.now() - (60 - remaining) * 1000
       const newStart = Date.now() - ((60 - currentPausedTime) * 1000);
       updateDoc(getGameDoc(), { hintTimerStart: newStart, hintTimerPaused: null });
+  };
+
+  const handleStartFocusTimer = async () => {
+      // Clear votes first just in case
+      const snap = await getDocs(getVoteCollection());
+      snap.docs.forEach(d => deleteDoc(d.ref));
+      updateDoc(getGameDoc(), { focusTimerStart: Date.now() });
+  };
+
+  const handleFocusDone = (team) => {
+      addDoc(getVoteCollection(), { teamName: team, vote: 'done', userId: user.uid });
   };
 
   const handleSelectBoon = (boonId) => {
@@ -1474,6 +1531,8 @@ export default function App() {
           onFactoryReset={handleFactoryReset}
           onOfferDoubleJeopardy={handleOfferDoubleJeopardy}
           onResumeHint={handleResumeHint}
+          onStartFocusTimer={handleStartFocusTimer}
+          allTeams={allTeams}
         />
       )}
       {user && role === 'player' && (
@@ -1486,6 +1545,7 @@ export default function App() {
           onVote={handleVote}
           onUseBoon={handleUseBoon}
           onDjDecision={handleDjDecision}
+          onFocusDone={handleFocusDone}
           teamName={teamName}
           setTeamName={setTeamName}
           hasJoined={hasJoined}
