@@ -101,7 +101,7 @@ const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/r
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
 const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/navacite/refs/heads/main/templates/static/audio/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -284,52 +284,99 @@ const InventoryDrawer = ({ inventory = [], onClose, onUseBoon, allTeams = [], cu
     );
 };
 
-// --- HYPER SPACE BACKGROUND EFFECT (MOBILE OPTIMIZED) ---
+// --- HYPER SPACE BACKGROUND EFFECT (CANVAS VERSION) ---
 const HyperSpaceBg = () => {
-  return (
-    <div className="absolute inset-0 overflow-hidden bg-black z-0 pointer-events-none">
-      <div 
-        className="absolute inset-0 opacity-80" 
-        style={{ background: 'radial-gradient(ellipse at center, #581c87 0%, #000000 60%, #000000 100%)' }}
-      ></div>
-      <style>{`
-        @keyframes warp-move {
-          0% { transform: translateY(0) scaleY(0); opacity: 0; }
-          20% { opacity: 1; }
-          100% { transform: translateY(800px) scaleY(4); opacity: 0; }
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+    
+    // Star properties
+    const stars = [];
+    const numStars = 150;
+    const speed = 20;
+
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: Math.random() * width - width / 2,
+        y: Math.random() * height - height / 2,
+        z: Math.random() * width
+      });
+    }
+
+    let animationFrameId;
+
+    const render = () => {
+      // Clear with trail effect
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // Clear slightly transparent for trails
+      ctx.fillRect(0, 0, width, height);
+      
+      const cx = width / 2;
+      const cy = height / 2;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ffffff';
+
+      stars.forEach(star => {
+        // Move star closer
+        star.z -= speed;
+
+        // Reset if it passes screen
+        if (star.z <= 0) {
+          star.x = Math.random() * width - width / 2;
+          star.y = Math.random() * height - height / 2;
+          star.z = width;
         }
-      `}</style>
-      {[...Array(50)].map((_, i) => {
-        const angle = Math.random() * 360;
-        const delay = Math.random() * 2;
-        const dur = 0.5 + Math.random() * 0.5;
+
+        // Project to 2D
+        const k = 128.0 / star.z;
+        const px = star.x * k + cx;
+        const py = star.y * k + cy;
+
+        // Draw star size based on depth
+        const size = (1 - star.z / width) * 4;
         
-        return (
-          <div
-            key={i}
-            className="absolute top-1/2 left-1/2 w-0.5 h-10 origin-top"
-            style={{
-              transform: `rotate(${angle}deg)`,
-            }}
-          >
-             <div 
-                style={{
-                    background: 'white',
-                    width: `${Math.random() * 3 + 1}px`,
-                    height: '100%',
-                    borderRadius: '50%',
-                    animation: `warp-move ${dur}s linear infinite`,
-                    animationDelay: `-${delay}s`,
-                    boxShadow: '0 0 4px 2px white',
-                    opacity: 0,
-                    willChange: 'transform, opacity' // Hardware Acceleration hint
-                }}
-             />
-          </div>
-        );
-      })}
-    </div>
-  );
+        // Draw "streak"
+        const prevZ = star.z + speed * 1.5; // Look back in time for trail
+        const prevK = 128.0 / prevZ;
+        const prevPx = star.x * prevK + cx;
+        const prevPy = star.y * prevK + cy;
+
+        ctx.beginPath();
+        ctx.moveTo(prevPx, prevPy);
+        ctx.lineTo(px, py);
+        ctx.lineWidth = size;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(px, py, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    const handleResize = () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    };
+    
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 z-0 bg-black" />;
 };
 
 // Isolated Buzzer Component
