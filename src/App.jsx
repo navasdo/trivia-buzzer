@@ -1346,7 +1346,9 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || !teamName || role === 'host') return;
+    // FIX: Added !hasJoined check to prevent DB sync on every keystroke while typing
+    if (!user || !teamName || role === 'host' || !hasJoined) return;
+    
     const docRef = getTeamDoc(teamName);
     const unsub = onSnapshot(docRef, (docSnap) => {
        if (docSnap.exists()) {
@@ -1357,7 +1359,7 @@ export default function App() {
        }
     });
     return () => unsub();
-  }, [user, teamName, role]);
+  }, [user, teamName, role, hasJoined]);
 
   const handleBuzz = (team) => addDoc(getBuzzCollection(), { teamName: team, timestamp: Date.now(), userId: user.uid });
   const handleResetBuzzers = async () => {
