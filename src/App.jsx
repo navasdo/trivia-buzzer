@@ -293,30 +293,13 @@ const HyperSpaceBg = () => {
         style={{ background: 'radial-gradient(ellipse at center, #581c87 0%, #000000 60%, #000000 100%)' }}
       ></div>
       <style>{`
-        @keyframes warp-speed {
-          0% { transform: rotate(var(--angle)) translateY(0) scaleY(0); opacity: 0; }
+        @keyframes warp-move {
+          0% { transform: translateY(0) scaleY(0); opacity: 0; }
           20% { opacity: 1; }
-          100% { transform: rotate(var(--angle)) translateY(800px) scaleY(4); opacity: 0; }
-        }
-        @-webkit-keyframes warp-speed {
-          0% { -webkit-transform: rotate(var(--angle)) translateY(0) scaleY(0); opacity: 0; }
-          20% { opacity: 1; }
-          100% { -webkit-transform: rotate(var(--angle)) translateY(800px) scaleY(4); opacity: 0; }
-        }
-        .star-streak {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          background: white;
-          width: 2px;
-          height: 40px;
-          border-radius: 50%;
-          transform-origin: center top;
-          box-shadow: 0 0 4px 2px white;
-          will-change: transform, opacity;
+          100% { transform: translateY(800px) scaleY(4); opacity: 0; }
         }
       `}</style>
-      {[...Array(60)].map((_, i) => {
+      {[...Array(50)].map((_, i) => {
         const angle = Math.random() * 360;
         const delay = Math.random() * 2;
         const dur = 0.5 + Math.random() * 0.5;
@@ -324,15 +307,25 @@ const HyperSpaceBg = () => {
         return (
           <div
             key={i}
-            className="star-streak"
+            className="absolute top-1/2 left-1/2 w-0.5 h-10 origin-top"
             style={{
-              '--angle': `${angle}deg`,
-              animation: `warp-speed ${dur}s linear infinite`,
-              animationDelay: `-${delay}s`,
-              width: `${Math.random() * 3 + 1}px`,
-              opacity: 0,
+              transform: `rotate(${angle}deg)`,
             }}
-          />
+          >
+             <div 
+                style={{
+                    background: 'white',
+                    width: `${Math.random() * 3 + 1}px`,
+                    height: '100%',
+                    borderRadius: '50%',
+                    animation: `warp-move ${dur}s linear infinite`,
+                    animationDelay: `-${delay}s`,
+                    boxShadow: '0 0 4px 2px white',
+                    opacity: 0,
+                    willChange: 'transform, opacity' // Hardware Acceleration hint
+                }}
+             />
+          </div>
         );
       })}
     </div>
