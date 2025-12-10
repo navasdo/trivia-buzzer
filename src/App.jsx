@@ -86,15 +86,15 @@ const getTeamDoc = (teamName) => doc(db, 'teams', teamName.toLowerCase().trim())
 const getTeamsCollection = () => collection(db, 'teams');
 
 // --- ASSETS ---
-const SOUND_POINT = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/positive-point.mp3";
+const SOUND_POINT = "https://raw.githubusercontent.com/navasdo/navacite/refs/heads/main/templates/static/audio/point.mp3";
 const SOUND_HINT_ALERT = "https://raw.githubusercontent.com/navasdo/navacite/refs/heads/main/templates/static/audio/hint-alert.mp3";
 const SOUND_FAIL = "https://www.myinstants.com/media/sounds/wrong-answer-sound-effect.mp3"; 
 const SOUND_TADA = "https://www.myinstants.com/media/sounds/tada-fanfare-sound-effect.mp3";
 const SOUND_SPINNER = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/spinner.mp3";
 const SOUND_BOON_SELECTED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-selected.mp3";
 const SOUND_BOON_USED = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
-const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-spent.mp3";
-const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/402-Code-Source/resource-hub/refs/heads/main/static/audio/sound-effects/hyper-focus.mp3";
+const SOUND_BOON_SPENT = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/boon-used.mp3";
+const SOUND_HYPER_FOCUS = "https://raw.githubusercontent.com/navasdo/trivia-buzzer/refs/heads/main/source/audio/hyper-focus.mp3";
 
 const ICON_1ST = "https://img.icons8.com/?size=400&id=fhHdSZSmx78s&format=png&color=000000";
 const ICON_2ND = "https://img.icons8.com/?size=400&id=zBacThauoQFN&format=png&color=000000";
@@ -1259,7 +1259,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
                   ) : (
                       <>
                         <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
-                            One of your fellow teammates or opponents submitted this subject area as a specialty of theirs.
+                            A player submitted this niche topic as their personal specialty!
                         </p>
                         <div className="flex flex-col gap-2">
                             <div className="text-white font-bold text-2xl uppercase tracking-widest">
