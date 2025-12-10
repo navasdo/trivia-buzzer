@@ -808,15 +808,20 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   const acceptCount = votes.filter(v => v.vote === 'accept').length;
   const rejectCount = votes.filter(v => v.vote === 'reject').length;
-  const passed = (acceptCount + rejectCount) === 0 || acceptCount > rejectCount;
+  
+  // NEW VOTE LOGIC: 0 Votes = PASSED
+  const totalVotes = acceptCount + rejectCount;
+  const passed = totalVotes === 0 || acceptCount > rejectCount;
   const voteResult = votingTimeLeft === 0 ? (passed ? 'PASSED' : 'REJECTED') : 'VOTING';
 
+  // Result Sound
   const resultSoundPlayed = useRef(false);
   useEffect(() => {
     if (votingTimeLeft === 0 && !resultSoundPlayed.current && gameState?.hintRequest) {
       resultSoundPlayed.current = true;
       if (hintAudioRef.current) { hintAudioRef.current.pause(); hintAudioRef.current = null; }
       
+      // Calculate result again locally or assume consistent state
       const acc = votes.filter(v => v.vote === 'accept').length;
       const rej = votes.filter(v => v.vote === 'reject').length;
       const tot = acc + rej;
@@ -1010,9 +1015,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
 
   // 3. Hint Clock
   if (gameState.mode === 'HINT') {
-      const readyCount = votes.filter(v => v.vote === 'done').length;
-      const totalTeams = allTeams.length; // Uses new prop
-
      return (
         <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center relative">
            <NotificationOverlay data={notification} />
@@ -1020,11 +1022,6 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
            
            {/* Synced Timer */}
            <div className="text-[12rem] font-black text-white leading-none tracking-tighter mb-8 tabular-nums">{hintTimer}</div>
-
-           {/* ADDED: READY COUNT DISPLAY */}
-           <div className="text-2xl text-green-400 font-bold uppercase tracking-widest mb-8">
-               {readyCount} / {totalTeams} TEAMS READY
-           </div>
 
            {/* Pause/Resume for Host */}
            {gameState.hintTimerPaused && (
