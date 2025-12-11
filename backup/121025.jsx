@@ -1251,76 +1251,62 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
 
   // --- HYPER FOCUS MODE (Player View) ---
   if (gameState?.mode === 'HYPER_FOCUS') {
-    const isTimerRunning = !!gameState.focusTimerStart;
-    const isDone = votes.some(v => v.teamName === teamName && v.vote === 'done');
+      const isTimerRunning = !!gameState.focusTimerStart;
+      const isDone = votes.some(v => v.teamName === teamName && v.vote === 'done');
 
-    return (
-        <div className="min-h-screen bg-purple-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden relative">
-            <HyperSpaceBg /> 
-            
-            <div className="relative z-10 animate-in zoom-in fade-in duration-1000 slide-in-from-top-10">
-                <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-purple-400 drop-shadow-[0_0_30px_rgba(168,85,247,0.8)] mb-6 tracking-tighter">
-                    HYPER FOCUS
-                </h1>
-                <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-widest animate-pulse">
-                    QUESTION
-                </h2>
-            </div>
-            
-            <div className="relative z-10 mt-12 max-w-xl bg-purple-800/60 p-6 rounded-xl border border-purple-500/80 backdrop-blur-md animate-in slide-in-from-bottom fade-in duration-1000 delay-300 fill-mode-both shadow-2xl">
-
-                {isTimerRunning ? (
-                    <div className="animate-in zoom-in duration-300">
-
-                        <div className="text-white font-bold text-lg mb-2 uppercase tracking-widest">
-                            TIME REMAINING
-                        </div>
-
-                        <div className="text-6xl font-black text-white tabular-nums mb-6">
-                            {focusTimer}s
-                        </div>
-
-                        {isDone ? (
-                            <div className="bg-green-600/50 text-white font-bold py-4 rounded-xl border-2 border-green-400 animate-pulse">
-                                WAITING FOR OTHERS...
-                            </div>
-                        ) : (
-                            <button 
+      return (
+          <div className="min-h-screen bg-purple-900 flex flex-col items-center justify-center p-6 text-center overflow-hidden relative">
+              <HyperSpaceBg /> 
+              <div className="relative z-10 animate-in zoom-in fade-in duration-1000 slide-in-from-top-10">
+                  <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-purple-400 drop-shadow-[0_0_30px_rgba(168,85,247,0.8)] mb-6 tracking-tighter">
+                      HYPER FOCUS
+                  </h1>
+                  <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-widest animate-pulse">
+                      QUESTION
+                  </h2>
+              </div>
+              
+              <div className="relative z-10 mt-12 max-w-xl bg-purple-800/60 p-6 rounded-xl border border-purple-500/80 backdrop-blur-md animate-in slide-in-from-bottom fade-in duration-1000 delay-300 fill-mode-both shadow-2xl">
+                  {isTimerRunning ? (
+                      <div className="animate-in zoom-in duration-300">
+                         <div className="text-white font-bold text-lg mb-2 uppercase tracking-widest">TIME REMAINING</div>
+                         <div className="text-6xl font-black text-white tabular-nums mb-6">{focusTimer}s</div>
+                         
+                         {isDone ? (
+                             <div className="bg-green-600/50 text-white font-bold py-4 rounded-xl border-2 border-green-400 animate-pulse">
+                                 WAITING FOR OTHERS...
+                             </div>
+                         ) : (
+                             <button 
                                 onClick={() => onFocusDone(teamName)}
-                                className="w-full bg-gray-800 hover:bg-gray-700 text-green-400 font-bold py-4 rounded-xl border-2 border-green-600 active:scale-95"
-                            >
+                                className="w-full bg-green-500 hover:bg-green-400 text-black font-black text-2xl py-4 rounded-xl shadow-lg transform active:scale-95"
+                             >
                                 MARK AS DONE
-                            </button>
-                        )}
-
-                    </div>
-                ) : (
-                    <>
+                             </button>
+                         )}
+                      </div>
+                  ) : (
+                      <>
                         <p className="text-purple-100 text-lg md:text-xl font-medium mb-4">
                             One of your fellow teammates or opponents submitted this subject area as a specialty of theirs.
                         </p>
-
                         <div className="flex flex-col gap-2">
                             <div className="text-white font-bold text-2xl uppercase tracking-widest">
                                 STAKES RAISED
                             </div>
-
                             <div className="text-yellow-400 font-black text-4xl drop-shadow-md">
                                 +2 POINTS
                             </div>
-
                             <div className="text-purple-300 text-sm font-bold uppercase tracking-wider">
                                 (Standard Rounds: +1)
                             </div>
                         </div>
-                    </>
-                )}
-
-            </div>
-        </div>
-    );
-}
-
+                      </>
+                  )}
+              </div>
+          </div>
+      );
+  }
 
   // --- LIGHTNING ROUND ---
   if (gameState?.mode === 'LIGHTNING') {
@@ -1377,7 +1363,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
         {/* ADDED: SYNCED TIMER DISPLAY */}
         {gameState?.mode === 'HINT' && (
            <div className="mb-8">
-              <h3 className="text-pink-500 font-bold text-sm uppercase tracking-widest mb-1">TIME REMAINING</h3>
+              <h3 className="text-pink-500 font-bold text-sm uppercase tracking-widest mb-1">HINT CLOCK</h3>
               <div className={`text-6xl font-black text-white tabular-nums leading-none ${gameState.hintTimerPaused ? 'animate-pulse text-yellow-400' : ''}`}>
                  {hintTimer}s
               </div>
@@ -1457,28 +1443,6 @@ export default function App() {
   const [buzzes, setBuzzes] = useState([]);
   const [votes, setVotes] = useState([]);
   const [gameState, setGameState] = useState({ mode: 'LOBBY' });
-
-  // Preload Audio Assets
-  useEffect(() => {
-    const audioUrls = [
-      SOUND_POINT,
-      SOUND_HINT_ALERT,
-      SOUND_FAIL,
-      SOUND_TADA,
-      SOUND_SPINNER,
-      SOUND_BOON_SELECTED,
-      SOUND_BOON_USED,
-      SOUND_BOON_SPENT,
-      SOUND_HYPER_FOCUS,
-      SOUND_DJ_OFFER
-    ];
-
-    audioUrls.forEach(url => {
-      const audio = new Audio(url);
-      audio.preload = 'auto';
-      audio.load();
-    });
-  }, []);
 
   useEffect(() => { signInAnonymously(auth); onAuthStateChanged(auth, setUser); }, []);
 
