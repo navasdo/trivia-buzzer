@@ -794,7 +794,7 @@ const Landing = ({ onChooseRole }) => {
 };
 
 // --- HOST VIEW ---
-const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onResumeHint, onStartFocusTimer, onStartDJSession, onResetDJSession, allTeams }) => {
+const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClearVotes, onSelectBoon, onSpinBoon, onOpenBuzzers, onStartGauntlet, onGauntletDecision, onFactoryReset, onResumeHint, onStartFocusTimer, onStartDJSession, onResetDJSession, allTeams, onStartRiggedLightning }) => {
   const [hintTimer, setHintTimer] = useState(60); 
   const [votingTimeLeft, setVotingTimeLeft] = useState(100); 
   const [notification, setNotification] = useState(null); 
@@ -802,6 +802,9 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
   const [focusTimer, setFocusTimer] = useState(60); // Hyper Focus Timer
   const [djTimer, setDjTimer] = useState(0); // DJ Window Timer
   
+  // NEW: For Boon Selection Phase
+  const [selectedBoonForRound, setSelectedBoonForRound] = useState(null);
+
   const prevBuzzCount = useRef(0);
   const hintProcessed = useRef(false);
   const hintAudioRef = useRef(null);
@@ -1152,6 +1155,51 @@ const HostView = ({ buzzes, gameState, votes, onResetBuzzers, onSetMode, onClear
     const topThree = buzzes.slice(0, 3);
     const boonRound = gameState.boonRound;
 
+    // --- NEW: BOON SELECTION PHASE (Before BoonRound is set) ---
+    if (!boonRound) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
+                <h1 className="text-3xl font-black text-cyan-400 mb-2 uppercase tracking-widest">Setup Lightning Round</h1>
+                <p className="text-gray-400 mb-8">Select the prize. Players will see a "random" spinner, but it will land on your choice.</p>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl w-full mb-8">
+                    {BOON_KEYS.map(key => {
+                        const boon = BOONS[key];
+                        const isUsed = gameState.usedBoons?.includes(key);
+                        const isSelected = selectedBoonForRound === key;
+                        
+                        return (
+                            <button 
+                                key={key}
+                                onClick={() => setSelectedBoonForRound(key)}
+                                className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center gap-2 transition-all
+                                    ${isSelected ? 'bg-cyan-900 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)] scale-105' : 
+                                      isUsed ? 'bg-gray-800 border-gray-700 opacity-50' : 
+                                      'bg-gray-800 border-gray-600 hover:border-gray-400'}`}
+                            >
+                                <div className="text-4xl">{boon.icon}</div>
+                                <div className="font-bold text-white text-sm">{boon.name}</div>
+                                {isUsed && <div className="text-xs text-red-500 font-bold uppercase">USED</div>}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                <div className="flex gap-4">
+                    <button onClick={() => onSetMode('LOBBY')} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-8 rounded-lg">CANCEL</button>
+                    <button 
+                        disabled={!selectedBoonForRound}
+                        onClick={() => onStartRiggedLightning(selectedBoonForRound)}
+                        className={`font-black text-2xl py-4 px-12 rounded-lg shadow-lg border-b-8 active:border-b-0 active:translate-y-2 uppercase tracking-widest
+                            ${selectedBoonForRound ? 'bg-green-600 hover:bg-green-500 text-white border-green-800' : 'bg-gray-800 text-gray-500 border-gray-900 cursor-not-allowed'}`}
+                    >
+                        START ROUND
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (boonRound?.phase === 'SPINNING' || boonRound?.phase === 'REVEAL') {
       const isSpinning = boonRound.phase === 'SPINNING';
       return (
@@ -1377,6 +1425,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
   // --- OVERLAYS ---
   if (gameState?.djOffer && gameState.djOffer.team === teamName) return <DjOfferOverlay offer={gameState.djOffer} onDecision={onDjDecision} />;
   
+  // --- SPINNER OVERLAY (MOVED UP FOR PRIORITY) ---
   if (gameState?.boonRound && (gameState.boonRound.phase === 'SPINNING' || gameState.boonRound.phase === 'REVEAL')) {
      const isSpinning = gameState.boonRound.phase === 'SPINNING';
      return (
@@ -1386,6 +1435,34 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
            <div className="mt-12 text-sm font-bold text-indigo-400 animate-pulse">GET READY...</div>
         </div>
      )
+  }
+
+  // --- NEW: LIGHTNING ROUND INTRO (Before Spinner) ---
+  if (gameState?.mode === 'LIGHTNING' && !gameState?.boonRound) {
+      return (
+          <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center animate-in zoom-in duration-500 relative">
+              {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
+              
+              <div className="absolute top-4 right-4 z-50">
+                 <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600 shadow-lg hover:bg-gray-700 transition-colors">
+                     <span className="text-xl">🎒</span><span className="font-bold text-white">{inventory.length}</span>
+                 </button>
+              </div>
+
+              <h1 className="text-5xl md:text-7xl font-black text-cyan-400 mb-6 uppercase italic tracking-tighter drop-shadow-[0_0_30px_rgba(34,211,238,0.5)]">
+                  LIGHTNING ROUND!
+              </h1>
+              <div className="bg-gray-800/80 p-6 rounded-2xl border border-gray-700 backdrop-blur-sm max-w-lg">
+                  <p className="text-white text-2xl font-bold mb-4">Host is selecting a prize...</p>
+                  <p className="text-gray-400 text-lg">Check your inventory! Use a BOON to mess with your opponents or gain an advantage.</p>
+              </div>
+              
+              <div className="mt-12 animate-pulse cursor-pointer" onClick={() => setShowInventory(true)}>
+                  <span className="text-6xl">🎒</span>
+                  <div className="text-sm font-bold text-gray-400 mt-2 uppercase tracking-widest">Open Backpack</div>
+              </div>
+          </div>
+      );
   }
 
   // --- DJ GLOBAL WINDOW OVERLAY ---
@@ -1527,6 +1604,7 @@ const PlayerView = ({ buzzes, gameState, votes, onBuzz, onHintRequest, onVote, o
            </div>
         );
      }
+     // Fallback if states drift, though new intro screen should catch it
      return <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center"><div className="animate-pulse text-xl text-cyan-400 font-bold">Get Ready...</div></div>;
   }
 
@@ -1720,30 +1798,26 @@ export default function App() {
          snap.docs.forEach(d => deleteDoc(d.ref));
      }
      if (mode === 'LIGHTNING') {
-         const currentState = gameState; 
-         const usedBoons = currentState.usedBoons || [];
-         let available = BOON_KEYS.filter(k => !usedBoons.includes(k));
-         let newUsed = usedBoons;
-         if (available.length === 0) {
-             available = BOON_KEYS;
-             newUsed = [];
-         }
-         const pickedId = available[Math.floor(Math.random() * available.length)];
-         newUsed = [...newUsed, pickedId];
-         data.usedBoons = newUsed;
-         data.boonRound = {
-             boonId: pickedId,
-             phase: 'SPINNING',
-             timestamp: Date.now()
-         };
-         setTimeout(() => {
-             updateDoc(getGameDoc(), { 'boonRound.phase': 'REVEAL' });
-         }, 4000);
-         // NOTE: Removed data.silenced = [] here. 
-         // Silenced/Infested/Decoyed arrays are now cleared in handleResetBuzzers to preserve lobby actions.
+         // CLEANUP: If we had any previous lightning state (though usually handled by reset)
+         data.boonRound = null;
      }
      setDoc(getGameDoc(), data, { merge: true });
   }
+
+  // NEW: Rigged Start Handler
+  const handleStartRiggedLightning = (boonId) => {
+     updateDoc(getGameDoc(), {
+        usedBoons: arrayUnion(boonId), // Track used boons
+        boonRound: {
+             boonId: boonId,
+             phase: 'SPINNING',
+             timestamp: Date.now()
+         }
+     });
+     setTimeout(() => {
+         updateDoc(getGameDoc(), { 'boonRound.phase': 'REVEAL' });
+     }, 4000);
+  };
   
   const handleHintRequest = (team) => updateDoc(getGameDoc(), { hintRequest: { team, timestamp: Date.now() }});
   const handleVote = (team, vote) => addDoc(getVoteCollection(), { teamName: team, vote, userId: user.uid });
@@ -1961,6 +2035,7 @@ export default function App() {
           onStartFocusTimer={handleStartFocusTimer}
           onStartDJSession={handleStartDJSession}
           onResetDJSession={handleResetDJSession}
+          onStartRiggedLightning={handleStartRiggedLightning} // NEW PROP
           allTeams={allTeams}
         />
       )}
