@@ -36,22 +36,6 @@ const BOONS = {
     canActivate: true,
     requiresTarget: true
   },
-  HOUSE_FLY: {
-    id: 'HOUSE_FLY',
-    name: 'House Fly',
-    desc: 'Force a rival to swat a fly 3x before buzzing.',
-    icon: '🪰',
-    canActivate: true,
-    requiresTarget: true
-  },
-  DECOY: {
-    id: 'DECOY',
-    name: 'The Decoy',
-    desc: 'Fills a rival\'s screen with 8 fake buzzers. Only 1 works.',
-    icon: '🎭',
-    canActivate: true,
-    requiresTarget: true
-  },
   FILIBUSTER: { 
     id: 'FILIBUSTER', 
     name: 'The Filibuster', 
@@ -397,16 +381,6 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
     const [silencedTime, setSilencedTime] = useState(0);
     const silencerInfo = gameState?.silenced?.find(s => s.target.toLowerCase() === teamName.toLowerCase());
     
-    // House Fly Logic
-    const infestedInfo = gameState?.infested?.find(s => s.target.toLowerCase() === teamName.toLowerCase());
-    const [swatCount, setSwatCount] = useState(0);
-    const [flyPos, setFlyPos] = useState({ top: '40%', left: '50%' });
-
-    // Decoy Logic
-    const decoyedInfo = gameState?.decoyed?.find(s => s.target.toLowerCase() === teamName.toLowerCase());
-    const [decoyRealIndex, setDecoyRealIndex] = useState(null);
-    const [decoyRevealed, setDecoyRevealed] = useState([]);
-
     useEffect(() => {
         if (silencerInfo && !isBuzzed) {
             setSilencedTime(1500);
@@ -416,52 +390,6 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
             return () => clearInterval(int);
         }
     }, [silencerInfo, isBuzzed]);
-
-    // Fly Movement Logic
-    useEffect(() => {
-        if (infestedInfo && !isBuzzed && !isBuzzed && !isWindowClosed && silencedTime <= 0) {
-             const moveFly = () => {
-                 const top = Math.floor(Math.random() * 70) + 15 + '%';
-                 const left = Math.floor(Math.random() * 80) + 10 + '%';
-                 setFlyPos({ top, left });
-             };
-             // Jittery movement
-             const int = setInterval(moveFly, 600);
-             return () => clearInterval(int);
-        }
-    }, [infestedInfo, isBuzzed, silencedTime]);
-
-    // Decoy Init
-    useEffect(() => {
-        if (decoyedInfo && decoyRealIndex === null) {
-            setDecoyRealIndex(Math.floor(Math.random() * 9));
-        }
-    }, [decoyedInfo, decoyRealIndex]);
-
-    const handleSwat = (e) => {
-        e.stopPropagation(); // prevent background clicks
-        const newCount = swatCount + 1;
-        setSwatCount(newCount);
-        if (newCount >= 3) {
-            onBuzz(teamName);
-        } else {
-             // Move instantly on hit
-             const top = Math.floor(Math.random() * 70) + 15 + '%';
-             const left = Math.floor(Math.random() * 80) + 10 + '%';
-             setFlyPos({ top, left });
-        }
-    };
-
-    const handleDecoyClick = (index) => {
-        if (index === decoyRealIndex) {
-            onBuzz(teamName);
-        } else {
-            if (!decoyRevealed.includes(index)) {
-                new Audio(SOUND_FAIL).play().catch(()=>{});
-                setDecoyRevealed([...decoyRevealed, index]);
-            }
-        }
-    };
 
     useEffect(() => {
        if (firstBuzzTime && !isBuzzed) {
@@ -498,22 +426,6 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
                  </div>
                  
                  <h2 className="text-2xl font-black text-cyan-400 mb-6 mt-16 uppercase tracking-widest">LIVE BOARD</h2>
-
-                 {/* Infested Badge on Leaderboard */}
-                 {infestedInfo && (
-                     <div className="bg-red-900/80 border-2 border-red-500 text-white px-6 py-2 rounded-lg font-bold mb-6 animate-pulse flex items-center gap-2">
-                         <span className="text-2xl">🪰</span>
-                         <span>ESCAPED THE SWARM SENT BY {infestedInfo.user}!</span>
-                     </div>
-                 )}
-
-                 {/* Decoy Badge on Leaderboard */}
-                 {decoyedInfo && (
-                     <div className="bg-purple-900/80 border-2 border-purple-500 text-white px-6 py-2 rounded-lg font-bold mb-6 animate-pulse flex items-center gap-2">
-                         <span className="text-2xl">🎭</span>
-                         <span>FOUND THE REAL BUZZER! (vs {decoyedInfo.user})</span>
-                     </div>
-                 )}
 
                  <div className="w-full max-w-lg space-y-4">
                      {topThree.map((buzz, index) => {
@@ -559,88 +471,7 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
         );
     }
 
-    // --- INFESTED VIEW ---
-    if (infestedInfo && !isSilenced && !isLocked) {
-        return (
-            <div className={`min-h-screen relative flex flex-col items-center justify-center p-6 bg-gray-900 overflow-hidden`}>
-                {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
-                
-                <div className="absolute top-4 right-4 z-50">
-                   <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600 shadow-lg">
-                       <span className="text-xl">🎒</span><span className="font-bold text-white">{inventory.length}</span>
-                   </button>
-                </div>
-
-                <div className="absolute top-6 left-0 right-0 text-center z-10">
-                   <span className="text-gray-500 text-sm font-bold uppercase tracking-widest">Playing as</span>
-                   <h3 className="text-white text-2xl font-black italic">{teamName}</h3>
-                </div>
-
-                <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center">
-                    <h1 className="text-4xl md:text-6xl font-black text-gray-700 opacity-20 uppercase tracking-widest rotate-12">INFESTED!</h1>
-                </div>
-
-                <div className="text-center z-20 mb-8 pointer-events-none">
-                    <h2 className="text-3xl font-bold text-yellow-400 animate-bounce drop-shadow-md">SWAT {3 - swatCount}X TO BUZZ!</h2>
-                    {showCountdown && <div className="text-6xl font-black text-red-500 mt-4">{(timeLeft/1000).toFixed(2)}s</div>}
-                </div>
-
-                <button 
-                    onClick={handleSwat}
-                    style={{ top: flyPos.top, left: flyPos.left }}
-                    className="absolute text-7xl transition-all duration-300 ease-in-out transform hover:scale-125 active:scale-90 z-30 filter drop-shadow-lg"
-                >
-                    🪰
-                </button>
-            </div>
-        );
-    }
-
-    // --- DECOY VIEW (Grid Game) ---
-    if (decoyedInfo && !isSilenced && !isLocked) {
-        return (
-            <div className={`min-h-screen relative flex flex-col items-center justify-center p-6 bg-gray-900`}>
-                {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
-                
-                <div className="absolute top-4 right-4 z-50">
-                   <button onClick={() => setShowInventory(true)} className="flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full border border-gray-600 shadow-lg">
-                       <span className="text-xl">🎒</span><span className="font-bold text-white">{inventory.length}</span>
-                   </button>
-                </div>
-
-                <div className="absolute top-6 left-0 right-0 text-center z-10">
-                   <span className="text-gray-500 text-sm font-bold uppercase tracking-widest">Playing as</span>
-                   <h3 className="text-white text-2xl font-black italic">{teamName}</h3>
-                </div>
-
-                <div className="text-center mb-8 relative z-20">
-                     <h2 className="text-3xl font-black text-purple-400 mb-2">WHICH ONE IS REAL?</h2>
-                     <p className="text-gray-400 text-sm">Decoy sent by {decoyedInfo.user}</p>
-                     {showCountdown && <div className="text-5xl font-black text-red-500 mt-4">{(timeLeft/1000).toFixed(2)}s</div>}
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 w-full max-w-md aspect-square relative z-20">
-                    {[...Array(9)].map((_, i) => {
-                        const isRevealed = decoyRevealed.includes(i);
-                        return (
-                            <button 
-                                key={i}
-                                onClick={() => handleDecoyClick(i)}
-                                disabled={isRevealed}
-                                className={`rounded-xl border-4 font-black text-xl flex items-center justify-center shadow-lg transition-all active:scale-95
-                                    ${isRevealed 
-                                        ? 'bg-gray-800 border-gray-700 text-4xl cursor-not-allowed opacity-50' 
-                                        : 'bg-red-600 border-red-400 hover:bg-red-500 text-white shadow-red-900/50'}`}
-                            >
-                                {isRevealed ? (Math.random() > 0.5 ? "🤡" : "🥸") : "BUZZ"}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    }
-
+    // --- DEFAULT BUZZER BUTTON VIEW ---
     return (
        <div className={`min-h-screen relative flex flex-col items-center justify-center p-6 transition-colors duration-500 ${isBuzzed ? 'bg-green-900' : 'bg-gray-900'}`}>
           {showInventory && <InventoryDrawer inventory={inventory} onClose={() => setShowInventory(false)} onUseBoon={onUseBoon} allTeams={allTeams} currentTeamName={teamName} />}
@@ -655,21 +486,6 @@ const LightningBuzzer = ({ buzzes = [], teamName, onBuzz, inventory = [], showIn
           {silencerInfo && isSilenced && (
               <div className="absolute top-20 bg-red-600 text-white px-4 py-2 rounded font-bold animate-pulse z-40">
                   LOCKED BY {silencerInfo.user}!
-              </div>
-          )}
-
-          {/* Infested Reveal Message (When Locked/Timed Out) */}
-          {infestedInfo && isLocked && (
-              <div className="absolute top-24 bg-red-600 text-white px-6 py-3 rounded-xl font-bold border-2 border-red-400 z-40 animate-bounce text-center">
-                  <div>🪰 PLAGUED BY {infestedInfo.user}!</div>
-                  <div className="text-xs opacity-75">(Better luck next time)</div>
-              </div>
-          )}
-
-          {/* Decoy Reveal Message */}
-          {decoyedInfo && isLocked && (
-               <div className="absolute top-24 bg-purple-600 text-white px-6 py-3 rounded-xl font-bold border-2 border-purple-400 z-40 animate-bounce text-center">
-                  <div>🤡 DUPED BY {decoyedInfo.user}!</div>
               </div>
           )}
 
@@ -1695,9 +1511,7 @@ export default function App() {
   const handleResetBuzzers = async () => {
      updateDoc(getGameDoc(), { 
          boonRound: null, 
-         silenced: [],
-         infested: [], // Clear House Fly status on Reset/New Round
-         decoyed: [] // Clear Decoy status on Reset/New Round
+         silenced: [] 
      });
      const snap = await getDocs(getBuzzCollection());
      snap.docs.forEach(d => deleteDoc(d.ref));
@@ -1739,8 +1553,8 @@ export default function App() {
          setTimeout(() => {
              updateDoc(getGameDoc(), { 'boonRound.phase': 'REVEAL' });
          }, 4000);
-         // NOTE: Removed data.silenced = [] here. 
-         // Silenced/Infested/Decoyed arrays are now cleared in handleResetBuzzers to preserve lobby actions.
+         // --- FIX: CLEAR SILENCED LIST ON NEW ROUND ---
+         data.silenced = [];
      }
      setDoc(getGameDoc(), data, { merge: true });
   }
@@ -1823,16 +1637,6 @@ export default function App() {
       else if (boonId === 'SILENCER' && targetTeam) {
           updateDoc(getGameDoc(), { 
               silenced: arrayUnion({ target: targetTeam, user: teamName, timestamp: Date.now() }) 
-          });
-      }
-      else if (boonId === 'HOUSE_FLY' && targetTeam) {
-          updateDoc(getGameDoc(), { 
-              infested: arrayUnion({ target: targetTeam, user: teamName, timestamp: Date.now() }) 
-          });
-      }
-      else if (boonId === 'DECOY' && targetTeam) {
-          updateDoc(getGameDoc(), { 
-              decoyed: arrayUnion({ target: targetTeam, user: teamName, timestamp: Date.now() }) 
           });
       }
       else if (boonId === 'PRIORITY') {
